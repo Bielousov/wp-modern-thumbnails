@@ -16,11 +16,14 @@
         this.currentIndex = 0;
         this.totalCount = 0;
         this.isProcessing = false;
+        this.stopped = false;
         this.$container = null;
         this.jobId = 'mmt-job-' + Date.now();
         this.leaveWarningHandler = null;
         this.linkClickHandler = null;
         this.originalOnBeforeUnload = undefined;
+        this.pendingTimeout = null;
+        this.currentAjaxRequest = null;
     };
     
     /**
@@ -150,7 +153,7 @@
     window.ThumbnailRegenerationJob.prototype.loadMediaFiles = function(callback) {
         var self = this;
         
-        jQuery.ajax({
+        this.currentAjaxRequest = jQuery.ajax({
             url: mmtData.ajaxUrl,
             type: 'POST',
             dataType: 'json',
@@ -159,6 +162,7 @@
                 nonce: mmtData.nonce
             },
             success: function(response) {
+                self.currentAjaxRequest = null;
                 if (response.success && response.data && response.data.media_ids) {
                     callback(response.data.media_ids);
                 } else {
@@ -167,6 +171,7 @@
                 }
             },
             error: function(xhr, status, error) {
+                self.currentAjaxRequest = null;
                 alert('Error loading media files: ' + error);
                 self.stop();
             }
@@ -178,6 +183,11 @@
      */
     window.ThumbnailRegenerationJob.prototype.processNext = function() {
         var self = this;
+        
+        // If job was stopped, don't process further
+        if (this.stopped) {
+            return;
+        }
         
         if (this.currentIndex >= this.totalCount) {
             // All done
@@ -199,27 +209,46 @@
             ajaxData.size = sizeName;
         }
         
-        jQuery.ajax({
+        // Store the AJAX request for potential abort, capturing the jqXHR object
+        this.currentAjaxRequest = jQuery.ajax({
             url: mmtData.ajaxUrl,
             type: 'POST',
             dataType: 'json',
             data: ajaxData,
             timeout: 30000,
             success: function(response) {
+                // Clear the stored request reference
+                self.currentAjaxRequest = null;
+                
+                // If job was stopped, don't continue
+                if (self.stopped) {
+                    return;
+                }
+                
                 self.currentIndex++;
                 self.updateProgress(self.currentIndex, self.totalCount);
                 
                 // Process next after a small delay
-                setTimeout(function() {
+                self.pendingTimeout = setTimeout(function() {
+                    self.pendingTimeout = null;
                     self.processNext();
                 }, 200);
             },
             error: function(xhr, status, error) {
+                // Clear the stored request reference
+                self.currentAjaxRequest = null;
+                
+                // If job was stopped, don't continue
+                if (self.stopped) {
+                    return;
+                }
+                
                 self.currentIndex++;
                 self.updateProgress(self.currentIndex, self.totalCount);
                 
                 // Continue with next even on error
-                setTimeout(function() {
+                self.pendingTimeout = setTimeout(function() {
+                    self.pendingTimeout = null;
                     self.processNext();
                 }, 200);
             }
@@ -278,6 +307,20 @@
      */
     window.ThumbnailRegenerationJob.prototype.stop = function() {
         this.isProcessing = false;
+        this.stopped = true;
+        
+        // Clear any pending timeout
+        if (this.pendingTimeout !== null) {
+            clearTimeout(this.pendingTimeout);
+            this.pendingTimeout = null;
+        }
+        
+        // Abort any in-flight AJAX request
+        if (this.currentAjaxRequest !== null && typeof this.currentAjaxRequest.abort === 'function') {
+            this.currentAjaxRequest.abort();
+            this.currentAjaxRequest = null;
+        }
+        
         this.disableLeaveWarning();
         if (this.$container) {
             this.$container.remove();
