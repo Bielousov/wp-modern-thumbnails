@@ -54,6 +54,7 @@ class Ajax {
         // If attachment_id is provided, regenerate only that specific attachment
         if ($attachment_id) {
             $regenerated = self::regenerateAttachmentSize($attachment_id, $size_name);
+            $file_path = get_attached_file($attachment_id);
             
             wp_send_json_success([
                 'message' => sprintf(
@@ -62,7 +63,8 @@ class Ajax {
                     $attachment_id
                 ),
                 'attachment_id' => $attachment_id,
-                'count' => $regenerated
+                'count' => $regenerated,
+                'file_path' => $file_path
             ]);
         } else {
             // Original behavior - regenerate all attachments for a size (deprecated)
@@ -101,90 +103,115 @@ class Ajax {
                 return 0;
             }
             
-            $metadata = wp_get_attachment_metadata($attachment_id);
-            if (empty($metadata) || empty($metadata['sizes'])) {
-                return 0;
-            }
-            
             $file = get_attached_file($attachment_id);
             if (!$file || !file_exists($file)) {
                 return 0;
             }
             
+            $metadata = wp_get_attachment_metadata($attachment_id);
+            if (empty($metadata)) {
+                return 0;
+            }
+            
             $image_sizes = \ModernMediaThumbnails\ImageSizeManager::getAllImageSizes();
             
-            if ($size_name && isset($metadata['sizes'][$size_name]) && isset($image_sizes[$size_name])) {
+            if ($size_name) {
                 // Regenerate specific size only
-                $size_data = $metadata['sizes'][$size_name];
-                $size_file = dirname($file) . '/' . $size_data['file'];
+                if (!isset($image_sizes[$size_name])) {
+                    return 0;
+                }
+                
+                // Get size data from metadata if available, otherwise create default
+                if (isset($metadata['sizes'][$size_name])) {
+                    $size_data = $metadata['sizes'][$size_name];
+                    $size_file = dirname($file) . '/' . $size_data['file'];
+                } else {
+                    // Generate from registered size info
+                    $ext = pathinfo($file, PATHINFO_EXTENSION);
+                    $size_file = dirname($file) . '/' . pathinfo($file, PATHINFO_FILENAME) . '-' . $size_name . '.' . $ext;
+                }
+                
                 $width = isset($image_sizes[$size_name]['width']) ? $image_sizes[$size_name]['width'] : 0;
                 $height = isset($image_sizes[$size_name]['height']) ? $image_sizes[$size_name]['height'] : 0;
                 $crop = isset($image_sizes[$size_name]['crop']) ? $image_sizes[$size_name]['crop'] : false;
                 
-                if ($width && $height) {
-                    // Generate WebP
-                    $webp_file = preg_replace('/\.[^\.]+$/', '.webp', $size_file);
-                    if (\ModernMediaThumbnails\ThumbnailGenerator::generateWebP($file, $webp_file, $width, $height, $crop)) {
-                        $regenerated++;
-                    }
-                    
-                    // Generate AVIF if enabled
-                    if (FormatManager::shouldGenerateAVIF()) {
-                        $avif_file = preg_replace('/\.[^\.]+$/', '.avif', $size_file);
-                        if (\ModernMediaThumbnails\ThumbnailGenerator::generateAVIF($file, $avif_file, $width, $height, $crop)) {
-                            $regenerated++;
-                        }
-                    }
-                    
-                    // Delete original if not keeping it
-                    if (!FormatManager::shouldKeepOriginal()) {
-                        if (file_exists($size_file)) {
-                            @unlink($size_file);
-                        }
-                    }
-                }
-            } else if (!$size_name) {
-                // Regenerate all sizes for this attachment
-                foreach ($metadata['sizes'] as $sz_name => $size_data) {
-                    if (!isset($image_sizes[$sz_name])) {
-                        continue;
-                    }
-                    
-                    $size_file = dirname($file) . '/' . $size_data['file'];
-                    $width = isset($image_sizes[$sz_name]['width']) ? $image_sizes[$sz_name]['width'] : 0;
-                    $height = isset($image_sizes[$sz_name]['height']) ? $image_sizes[$sz_name]['height'] : 0;
-                    $crop = isset($image_sizes[$sz_name]['crop']) ? $image_sizes[$sz_name]['crop'] : false;
-                    
-                    if ($width && $height) {
-                        // Generate WebP
-                        $webp_file = preg_replace('/\.[^\.]+$/', '.webp', $size_file);
-                        if (\ModernMediaThumbnails\ThumbnailGenerator::generateWebP($file, $webp_file, $width, $height, $crop)) {
-                            $regenerated++;
+                $regenerated = self::generateFormatsForSize($file, $size_file, $width, $height, $crop);
+            } else {
+                // Regenerate all sizes
+                if (!empty($metadata['sizes'])) {
+                    // Regenerate from existing metadata sizes
+                    foreach ($metadata['sizes'] as $sz_name => $size_data) {
+                        if (!isset($image_sizes[$sz_name])) {
+                            continue;
                         }
                         
-                        // Generate AVIF if enabled
-                        if (FormatManager::shouldGenerateAVIF()) {
-                            $avif_file = preg_replace('/\.[^\.]+$/', '.avif', $size_file);
-                            if (\ModernMediaThumbnails\ThumbnailGenerator::generateAVIF($file, $avif_file, $width, $height, $crop)) {
-                                $regenerated++;
-                            }
-                        }
+                        $size_file = dirname($file) . '/' . $size_data['file'];
+                        $width = isset($image_sizes[$sz_name]['width']) ? $image_sizes[$sz_name]['width'] : 0;
+                        $height = isset($image_sizes[$sz_name]['height']) ? $image_sizes[$sz_name]['height'] : 0;
+                        $crop = isset($image_sizes[$sz_name]['crop']) ? $image_sizes[$sz_name]['crop'] : false;
                         
-                        // Delete original if not keeping it
-                        if (!FormatManager::shouldKeepOriginal()) {
-                            if (file_exists($size_file)) {
-                                @unlink($size_file);
-                            }
-                        }
+                        $regenerated += self::generateFormatsForSize($file, $size_file, $width, $height, $crop);
+                    }
+                } else {
+                    // No metadata sizes - generate from all registered sizes
+                    foreach ($image_sizes as $sz_name => $size_info) {
+                        $ext = pathinfo($file, PATHINFO_EXTENSION);
+                        $size_file = dirname($file) . '/' . pathinfo($file, PATHINFO_FILENAME) . '-' . $sz_name . '.' . $ext;
+                        $width = isset($size_info['width']) ? $size_info['width'] : 0;
+                        $height = isset($size_info['height']) ? $size_info['height'] : 0;
+                        $crop = isset($size_info['crop']) ? $size_info['crop'] : false;
+                        
+                        $regenerated += self::generateFormatsForSize($file, $size_file, $width, $height, $crop);
                     }
                 }
             }
         } catch (\Exception $e) {
-            // Log error silently
+            // Log error for debugging
             error_log('Error regenerating attachment ' . $attachment_id . ': ' . $e->getMessage());
         }
         
         return $regenerated;
+    }
+    
+    /**
+     * Generate WebP and AVIF formats for a specific size
+     * 
+     * @param string $source_file
+     * @param string $size_file
+     * @param int $width
+     * @param int $height
+     * @param bool $crop
+     * @return int
+     */
+    private static function generateFormatsForSize($source_file, $size_file, $width, $height, $crop) {
+        $count = 0;
+        
+        if (!$width || !$height) {
+            return 0;
+        }
+        
+        // Generate WebP
+        $webp_file = preg_replace('/\.[^\.]+$/', '.webp', $size_file);
+        if (\ModernMediaThumbnails\ThumbnailGenerator::generateWebP($source_file, $webp_file, $width, $height, $crop)) {
+            $count++;
+        }
+        
+        // Generate AVIF if enabled
+        if (FormatManager::shouldGenerateAVIF()) {
+            $avif_file = preg_replace('/\.[^\.]+$/', '.avif', $size_file);
+            if (\ModernMediaThumbnails\ThumbnailGenerator::generateAVIF($source_file, $avif_file, $width, $height, $crop)) {
+                $count++;
+            }
+        }
+        
+        // Delete original if not keeping it
+        if (!FormatManager::shouldKeepOriginal()) {
+            if (file_exists($size_file)) {
+                @unlink($size_file);
+            }
+        }
+        
+        return $count;
     }
     
     /**

@@ -57,6 +57,7 @@ class Assets {
             'nonce' => wp_create_nonce('mmt_regenerate_nonce'),
             'settingsNonce' => wp_create_nonce('mmt_settings_nonce'),
             'ajaxUrl' => admin_url('admin-ajax.php'),
+            'pluginUrl' => $plugin_url,
             'i18n' => [
                 'regenerating' => __('Regenerating...', 'modern-media-thumbnails'),
                 'success' => __('Regeneration completed!', 'modern-media-thumbnails'),
@@ -65,9 +66,16 @@ class Assets {
         ]);
         
         wp_enqueue_style(
+            'mmt-job-handler',
+            $plugin_url . 'css/job-handler.css',
+            [],
+            $plugin_version
+        );
+        
+        wp_enqueue_style(
             'mmt-admin',
             $plugin_url . 'css/admin.css',
-            [],
+            ['mmt-job-handler'],
             $plugin_version
         );
     }

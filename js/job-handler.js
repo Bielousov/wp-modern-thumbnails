@@ -26,14 +26,43 @@
         this.currentAjaxRequest = null;
     };
     
+    // Global static instance tracking
+    window.ThumbnailRegenerationJob.activeJob = null;
+    
+    // Static method to get the title based on job type
+    window.ThumbnailRegenerationJob.getJobTitle = function(options) {
+        var title = 'Regenerating Thumbnails';
+        
+        if (options.type === 'all') {
+            title = 'Regenerating All Thumbnails';
+        } else if (options.type === 'size' && options.size) {
+            var displayName = options.size === 'Thumbnails' ? 'Thumbnails' : options.size;
+            title = 'Regenerating ' + displayName + ' Thumbnails';
+        }
+        
+        return title;
+    };
+    
     /**
      * Start a regeneration job
      */
     window.ThumbnailRegenerationJob.prototype.start = function() {
         var self = this;
         
+        // Check if another job is already running
+        if (window.ThumbnailRegenerationJob.activeJob !== null) {
+            alert('A regeneration job is already running. Please wait for it to complete or click Stop.');
+            return;
+        }
+        
+        // Set this as the active job
+        window.ThumbnailRegenerationJob.activeJob = this;
+        
         // Create and show job UI
         this.createJobUI();
+        
+        // Disable all regenerate buttons
+        this.disableRegenerateButtons();
         
         // Add page leave warning
         this.enableLeaveWarning();
@@ -45,7 +74,7 @@
             self.currentIndex = 0;
             self.isProcessing = true;
             
-            // Update UI
+            // Update UI with initial progress
             self.updateProgress(0, self.totalCount);
             
             // Start processing
@@ -75,54 +104,23 @@
         }
         
         // Create job container with modern styling
-        var html = '<div id="' + this.jobId + '" class="mmt-job-progress" style="' +
-            'background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%); ' +
-            'border: 1px solid #e9ecef; border-radius: 6px; padding: 16px; ' +
-            'margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);">' +
-            '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">' +
+        var title = window.ThumbnailRegenerationJob.getJobTitle(this.options);
+        var html = '<div id="' + this.jobId + '" class="mmt-job-progress">' +
+            '<div class="mmt-job-header">' +
             '<div>' +
-            '<h4 style="margin: 0; font-size: 14px; font-weight: 600; color: #2c3e50;">Regenerating Thumbnails</h4>' +
-            '<p style="margin: 4px 0 0 0; font-size: 12px; color: #6c757d;">Processing your media library...</p>' +
+            '<h3 class="mmt-job-title">' + title + '</h3>' +
+            '<p class="mmt-job-subtitle">Processing your media library...</p>' +
             '</div>' +
-            '<button class="mmt-job-stop" style="background: #dc3545; color: white; border: none; border-radius: 3px; padding: 6px 12px; font-size: 12px; font-weight: 500; cursor: pointer; transition: background 0.2s;">Stop</button>' +
+            '<button class="mmt-job-stop">Stop</button>' +
             '</div>' +
-            '<div style="position: relative;">' +
-            '<progress id="' + this.jobId + '-progress" value="0" max="100" style="' +
-            'width: 100%; height: 6px; border-radius: 3px; border: none; ' +
-            'background-color: #e9ecef; appearance: none; -webkit-appearance: none; -moz-appearance: none;"' +
-            '></progress>' +
-            '<span id="' + this.jobId + '-count" style="' +
-            'display: inline-block; margin-top: 8px; font-size: 12px; color: #6c757d; font-weight: 500;"' +
-            '>0 / 0</span>' +
+            '<div class="mmt-job-progress-bar-container">' +
+            '<progress id="' + this.jobId + '-progress" class="mmt-job-progress-element" value="0" max="100"></progress>' +
+            '<span id="' + this.jobId + '-count" class="mmt-job-count">0 / 0</span>' +
             '</div>' +
+            '<div id="' + this.jobId + '-path" class="mmt-job-path"></div>' +
             '</div>';
         
-        // Add progress bar styling for webkit browsers
-        var style = document.createElement('style');
-        style.textContent = '@media all {\n' +
-            '#' + this.jobId + '-progress::-webkit-progress-bar {\n' +
-            '  background-color: #e9ecef;\n' +
-            '  border-radius: 3px;\n' +
-            '  height: 6px;\n' +
-            '}\n' +
-            '#' + this.jobId + '-progress::-webkit-progress-value {\n' +
-            '  background: linear-gradient(90deg, #0066cc 0%, #0052a3 100%);\n' +
-            '  border-radius: 3px;\n' +
-            '  transition: width 0.3s ease;\n' +
-            '}\n' +
-            '#' + this.jobId + '-progress::-moz-progress-bar {\n' +
-            '  background: linear-gradient(90deg, #0066cc 0%, #0052a3 100%);\n' +
-            '  border-radius: 3px;\n' +
-            '  border: none;\n' +
-            '}\n' +
-            '.mmt-job-stop {\n' +
-            '  background: #dc3545;\n' +
-            '}\n' +
-            '.mmt-job-stop:hover {\n' +
-            '  background: #c82333 !important;\n' +
-            '}\n' +
-            '}';
-        document.head.appendChild(style);
+        // CSS is now enqueued via wp_enqueue_style in PHP
         
         // Insert at the beginning of the tab content
         if (insertTarget) {
@@ -144,6 +142,28 @@
             } else {
                 self.$container.remove();
             }
+        });
+    };
+    
+    /**
+     * Disable all regenerate buttons while job is running
+     */
+    window.ThumbnailRegenerationJob.prototype.disableRegenerateButtons = function() {
+        var buttons = document.querySelectorAll('.mmt-regenerate-size, #mmt-regenerate-all');
+        buttons.forEach(function(btn) {
+            btn.disabled = true;
+            btn.classList.add('mmt-regenerate-button');
+        });
+    };
+    
+    /**
+     * Enable all regenerate buttons when job is done
+     */
+    window.ThumbnailRegenerationJob.prototype.enableRegenerateButtons = function() {
+        var buttons = document.querySelectorAll('.mmt-regenerate-size, #mmt-regenerate-all');
+        buttons.forEach(function(btn) {
+            btn.disabled = false;
+            btn.classList.remove('mmt-regenerate-button');
         });
     };
     
@@ -226,7 +246,20 @@
                 }
                 
                 self.currentIndex++;
-                self.updateProgress(self.currentIndex, self.totalCount);
+                
+                // Format message based on response count
+                var displayPath = '';
+                var responseData = response.data || response;
+                
+                if (responseData.file_path) {
+                    if (responseData.count > 0) {
+                        displayPath = 'Last processed media file: ' + responseData.file_path;
+                    } else if (responseData.count === 0) {
+                        displayPath = 'Skipped ' + responseData.file_path + ': file not found';
+                    }
+                }
+                
+                self.updateProgress(self.currentIndex, self.totalCount, displayPath);
                 
                 // Process next after a small delay
                 self.pendingTimeout = setTimeout(function() {
@@ -244,7 +277,7 @@
                 }
                 
                 self.currentIndex++;
-                self.updateProgress(self.currentIndex, self.totalCount);
+                self.updateProgress(self.currentIndex, self.totalCount, null);
                 
                 // Continue with next even on error
                 self.pendingTimeout = setTimeout(function() {
@@ -258,11 +291,12 @@
     /**
      * Update progress bar and counter
      */
-    window.ThumbnailRegenerationJob.prototype.updateProgress = function(current, total) {
+    window.ThumbnailRegenerationJob.prototype.updateProgress = function(current, total, filePath) {
         if (!this.$container) return;
         
         var progressEl = this.$container.querySelector('#' + this.jobId + '-progress');
         var countEl = this.$container.querySelector('#' + this.jobId + '-count');
+        var pathEl = this.$container.querySelector('#' + this.jobId + '-path');
         
         if (progressEl) {
             var percent = total > 0 ? Math.round((current / total) * 100) : 0;
@@ -272,6 +306,15 @@
         
         if (countEl) {
             countEl.textContent = current + ' / ' + total;
+        }
+        
+        // Update file path immediately if provided
+        if (filePath && typeof filePath === 'string' && filePath.length > 0) {
+            if (pathEl) {
+                var isSkipped = filePath.indexOf('Skipped') === 0;
+                pathEl.textContent = filePath;
+                pathEl.className = 'mmt-job-path ' + (isSkipped ? 'mmt-job-path-skipped' : 'mmt-job-path-success');
+            }
         }
     };
     
@@ -293,10 +336,14 @@
         this.isProcessing = false;
         this.disableLeaveWarning();
         
+        // Enable buttons and clear active job
+        this.enableRegenerateButtons();
+        window.ThumbnailRegenerationJob.activeJob = null;
+        
         if (this.$container) {
             var countEl = this.$container.querySelector('#' + this.jobId + '-count');
             if (countEl) {
-                countEl.style.color = '#28a745';
+                countEl.style.color = '#00ff88';
                 countEl.textContent = 'Complete!';
             }
         }
@@ -322,6 +369,11 @@
         }
         
         this.disableLeaveWarning();
+        
+        // Enable buttons and clear active job
+        this.enableRegenerateButtons();
+        window.ThumbnailRegenerationJob.activeJob = null;
+        
         if (this.$container) {
             this.$container.remove();
         }
