@@ -9,6 +9,7 @@ namespace ModernMediaThumbnails;
 
 use ModernMediaThumbnails\WordPress\UploadHooks;
 use ModernMediaThumbnails\Admin\SettingsPage;
+use ModernMediaThumbnails\Admin\MediaSettings;
 use ModernMediaThumbnails\Admin\Ajax;
 use ModernMediaThumbnails\Admin\Assets;
 use ModernMediaThumbnails\Admin\AdminNotices;
@@ -29,6 +30,7 @@ class Plugin {
         
         // Register admin components
         add_action('admin_menu', [SettingsPage::class, 'registerMenu']);
+        MediaSettings::register();
         Ajax::register();
         Assets::register();
         AdminNotices::register();

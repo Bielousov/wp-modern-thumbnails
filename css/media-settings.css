@@ -1,0 +1,44 @@
+/**
+ * Media Settings Integration
+ * 
+ * Styles for the Image Formats section on Settings > Media page
+ */
+
+.mmt-media-formats-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.mmt-media-format {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    color: white;
+}
+
+.mmt-media-format.mmt-format-webp {
+    background-color: #00a0d2;
+}
+
+.mmt-media-format.mmt-format-original {
+    background-color: #0073aa;
+}
+
+.mmt-media-format.mmt-format-avif {
+    background-color: #9c27b0;
+}
+
+.mmt-quality-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 500;
+}

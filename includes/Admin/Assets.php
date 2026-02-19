@@ -22,19 +22,35 @@ class Assets {
         }
         
         // Load on settings pages - both the specific page and options-general page
-        $should_load = (
+        $should_load_full = (
             $hook === 'settings_page_mmt-settings' ||
             $hook === 'toplevel_page_mmt-settings' ||
             (isset($_GET['page']) && $_GET['page'] === 'mmt-settings')
         );
         
-        if (!$should_load) {
+        // Load minimal CSS on media settings page for the formats display
+        $should_load_media = ($hook === 'options-media.php');
+        
+        if (!$should_load_full && !$should_load_media) {
             return;
         }
         
         // Use the constant defined in the main plugin file
         $plugin_url = defined('MMT_PLUGIN_URL') ? MMT_PLUGIN_URL : plugin_dir_url(dirname(dirname(dirname(__FILE__))));
         $plugin_version = defined('MMT_PLUGIN_VERSION') ? MMT_PLUGIN_VERSION : '1.0.0';
+        
+        // Always enqueue the admin CSS for media formats display
+        wp_enqueue_style(
+            'mmt-admin',
+            $plugin_url . 'css/admin.css',
+            [],
+            $plugin_version
+        );
+        
+        // Only load full JavaScript and related assets on plugin settings page
+        if (!$should_load_full) {
+            return;
+        }
         
         // Enqueue job handler script first
         wp_enqueue_script(
@@ -69,13 +85,6 @@ class Assets {
             'mmt-job-handler',
             $plugin_url . 'css/job-handler.css',
             [],
-            $plugin_version
-        );
-        
-        wp_enqueue_style(
-            'mmt-admin',
-            $plugin_url . 'css/admin.css',
-            ['mmt-job-handler'],
             $plugin_version
         );
     }
