@@ -56,6 +56,10 @@ class Ajax {
             $regenerated = self::regenerateAttachmentSize($attachment_id, $size_name);
             $file_path = get_attached_file($attachment_id);
             
+            // Detect actual formats on disk
+            $size_to_check = $size_name ?: 'original';
+            $detected_formats = self::detectFormatsOnDisk($attachment_id, $size_to_check);
+            
             wp_send_json_success([
                 'message' => sprintf(
                     'Generated %d format(s) for media #%d',
@@ -64,7 +68,8 @@ class Ajax {
                 ),
                 'attachment_id' => $attachment_id,
                 'count' => $regenerated,
-                'file_path' => $file_path
+                'file_path' => $file_path,
+                'formats' => $detected_formats
             ]);
         } else {
             // Original behavior - regenerate all attachments for a size (deprecated)
@@ -135,7 +140,7 @@ class Ajax {
                 $height = isset($image_sizes[$size_name]['height']) ? $image_sizes[$size_name]['height'] : 0;
                 $crop = isset($image_sizes[$size_name]['crop']) ? $image_sizes[$size_name]['crop'] : false;
                 
-                $regenerated = self::generateFormatsForSize($file, $size_file, $width, $height, $crop);
+                $regenerated = self::generateFormatsForSize($file, $size_file, $width, $height, $crop, $attachment->post_mime_type);
             } else {
                 // Regenerate all sizes
                 if (!empty($metadata['sizes'])) {
@@ -150,7 +155,7 @@ class Ajax {
                         $height = isset($image_sizes[$sz_name]['height']) ? $image_sizes[$sz_name]['height'] : 0;
                         $crop = isset($image_sizes[$sz_name]['crop']) ? $image_sizes[$sz_name]['crop'] : false;
                         
-                        $regenerated += self::generateFormatsForSize($file, $size_file, $width, $height, $crop);
+                        $regenerated += self::generateFormatsForSize($file, $size_file, $width, $height, $crop, $attachment->post_mime_type);
                     }
                 } else {
                     // No metadata sizes - generate from all registered sizes
@@ -161,7 +166,7 @@ class Ajax {
                         $height = isset($size_info['height']) ? $size_info['height'] : 0;
                         $crop = isset($size_info['crop']) ? $size_info['crop'] : false;
                         
-                        $regenerated += self::generateFormatsForSize($file, $size_file, $width, $height, $crop);
+                        $regenerated += self::generateFormatsForSize($file, $size_file, $width, $height, $crop, $attachment->post_mime_type);
                     }
                 }
             }
@@ -174,44 +179,81 @@ class Ajax {
     }
     
     /**
-     * Generate WebP and AVIF formats for a specific size
+     * Generate formats for a specific size based on user settings
      * 
      * @param string $source_file
      * @param string $size_file
      * @param int $width
      * @param int $height
      * @param bool $crop
+     * @param string $original_mime_type
      * @return int
      */
-    private static function generateFormatsForSize($source_file, $size_file, $width, $height, $crop) {
+    private static function generateFormatsForSize($source_file, $size_file, $width, $height, $crop, $original_mime_type = 'image/jpeg') {
         $count = 0;
         
         if (!$width || !$height) {
             return 0;
         }
         
-        // Generate WebP
-        $webp_file = preg_replace('/\.[^\.]+$/', '.webp', $size_file);
+        // Get user settings
+        $keep_original = FormatManager::shouldKeepOriginal();
+        $generate_avif = FormatManager::shouldGenerateAVIF();
+        
+        // Map MIME type to format for original generation
+        $format_map = [
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            'image/gif' => 'gif',
+            'image/webp' => 'webp',
+        ];
+        
+        $original_format = $format_map[$original_mime_type] ?? 'jpg';
+        
+        // Remove existing files for this size
+        $size_base = preg_replace('/\.[^\.]+$/', '', $size_file);
+        self::deleteExistingFiles($size_base);
+        
+        // Always generate WebP
+        $webp_file = $size_base . '.webp';
         if (\ModernMediaThumbnails\ThumbnailGenerator::generateWebP($source_file, $webp_file, $width, $height, $crop)) {
             $count++;
         }
         
+        // Keep original format if enabled
+        if ($keep_original) {
+            $original_file = $size_base . '.' . $original_format;
+            if (\ModernMediaThumbnails\ThumbnailGenerator::generateThumbnail($source_file, $original_file, $width, $height, $crop, $original_format)) {
+                $count++;
+            }
+        }
+        
         // Generate AVIF if enabled
-        if (FormatManager::shouldGenerateAVIF()) {
-            $avif_file = preg_replace('/\.[^\.]+$/', '.avif', $size_file);
+        if ($generate_avif) {
+            $avif_file = $size_base . '.avif';
             if (\ModernMediaThumbnails\ThumbnailGenerator::generateAVIF($source_file, $avif_file, $width, $height, $crop)) {
                 $count++;
             }
         }
         
-        // Delete original if not keeping it
-        if (!FormatManager::shouldKeepOriginal()) {
-            if (file_exists($size_file)) {
-                @unlink($size_file);
+        return $count;
+    }
+    
+    /**
+     * Delete existing files for a thumbnail size
+     * 
+     * @param string $size_base Base path without extension
+     * @return void
+     */
+    private static function deleteExistingFiles($size_base) {
+        $formats = ['webp', 'avif', 'png', 'jpg', 'jpeg', 'gif'];
+        
+        foreach ($formats as $format) {
+            $file = $size_base . '.' . $format;
+            if (file_exists($file)) {
+                @unlink($file);
             }
         }
-        
-        return $count;
     }
     
     /**
@@ -241,6 +283,85 @@ class Ajax {
     }
     
     /**
+     * Detect which formats actually exist on disk for a thumbnail size
+     * 
+     * @param int $attachment_id
+     * @param string $size_name
+     * @return array Array with keys 'original', 'webp', 'avif' set to true if files exist
+     */
+    public static function detectFormatsOnDisk($attachment_id, $size_name) {
+        $formats = [
+            'original' => false,
+            'webp' => false,
+            'avif' => false,
+        ];
+        
+        try {
+            $attachment = get_post($attachment_id);
+            if (!$attachment) {
+                return $formats;
+            }
+            
+            $file = get_attached_file($attachment_id);
+            if (!$file) {
+                return $formats;
+            }
+            
+            $metadata = wp_get_attachment_metadata($attachment_id);
+            if (empty($metadata)) {
+                return $formats;
+            }
+            
+            // Determine base path for this size
+            $size_base = '';
+            
+            if ($size_name === 'original') {
+                // For original image
+                $size_base = preg_replace('/\.[^\.]+$/', '', $file);
+            } else {
+                // For thumbnail sizes
+                if (isset($metadata['sizes'][$size_name])) {
+                    $size_data = $metadata['sizes'][$size_name];
+                    $size_file = dirname($file) . '/' . $size_data['file'];
+                    $size_base = preg_replace('/\.[^\.]+$/', '', $size_file);
+                } else {
+                    // Fallback to pattern
+                    $ext = pathinfo($file, PATHINFO_EXTENSION);
+                    $size_base = dirname($file) . '/' . pathinfo($file, PATHINFO_FILENAME) . '-' . $size_name;
+                }
+            }
+            
+            // Check for WebP
+            if (file_exists($size_base . '.webp')) {
+                $formats['webp'] = true;
+            }
+            
+            // Check for AVIF
+            if (file_exists($size_base . '.avif')) {
+                $formats['avif'] = true;
+            }
+            
+            // Check for original format
+            $original_formats = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+            foreach ($original_formats as $fmt) {
+                if (file_exists($size_base . '.' . $fmt)) {
+                    // But exclude if it's just the webp we already detected
+                    if (!($fmt === 'webp' && $formats['webp'])) {
+                        $formats['original'] = true;
+                        break;
+                    }
+                }
+            }
+            
+        } catch (\Exception $e) {
+            error_log('Error detecting formats: ' . $e->getMessage());
+        }
+        
+        return $formats;
+    }
+    
+    /**
+
      * Get list of all media files in the library
      * 
      * @return void

@@ -118,10 +118,6 @@ class SettingsPage {
                                 <p class="mmt-card-description"><?php esc_html_e('Convert animated GIFs to MP4/WebM formats for better performance and compatibility', 'modern-media-thumbnails'); ?></p>
                             </div>
                         </div>
-                                    <span><?php esc_html_e('Convert animated GIFs to MP4/WebM formats for better performance and compatibility', 'modern-media-thumbnails'); ?></span>
-                                </label>
-                            </div>
-                        </div>
                     </form>
                     
                     <!-- Information Box -->
@@ -175,8 +171,10 @@ class SettingsPage {
                                     <strong><?php esc_html_e('Original Image', 'modern-media-thumbnails'); ?></strong>
                                 </td>
                                 <td>
-                                    <div class="mmt-formats">
-                                        <span class="mmt-format-badge mmt-format-original"><?php esc_html_e('Original (JPEG/PNG/GIF)', 'modern-media-thumbnails'); ?></span>
+                                    <div class="mmt-formats-wrapper">
+                                        <?php if ($settings['keep_original'] ?? false): ?>
+                                            <span class="mmt-format-badge mmt-format-original"><?php esc_html_e('Original (JPEG/PNG)', 'modern-media-thumbnails'); ?></span>
+                                        <?php endif; ?>
                                     </div>
                                 </td>
                             </tr>
@@ -218,8 +216,16 @@ class SettingsPage {
                                             <?php endif; ?>
                                         </td>
                                         <td>
-                                            <div class="mmt-formats">
-                                                <span class="mmt-format-badge mmt-format-webp"><?php esc_html_e('WebP + Original', 'modern-media-thumbnails'); ?></span>
+                                            <div class="mmt-formats-wrapper">
+                                                <div class="mmt-formats">
+                                                    <?php if ($settings['keep_original'] ?? false): ?>
+                                                        <span class="mmt-format-badge mmt-format-original"><?php esc_html_e('Original (JPEG/PNG)', 'modern-media-thumbnails'); ?></span>
+                                                    <?php endif; ?>
+                                                    <span class="mmt-format-badge mmt-format-webp"><?php esc_html_e('WebP', 'modern-media-thumbnails'); ?></span>
+                                                    <?php if ($settings['generate_avif'] ?? false): ?>
+                                                        <span class="mmt-format-badge mmt-format-avif"><?php esc_html_e('AVIF', 'modern-media-thumbnails'); ?></span>
+                                                    <?php endif; ?>
+                                                </div>
                                                 <a href="#" class="mmt-regenerate-size" data-size="<?php echo esc_attr($size_name); ?>"><?php esc_html_e('Regenerate', 'modern-media-thumbnails'); ?></a>
                                             </div>
                                         </td>

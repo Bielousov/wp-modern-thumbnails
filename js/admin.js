@@ -24,24 +24,44 @@ jQuery(function ($) {
             },
             success: function (response) {
                 if (response.success) {
-                    // Show success message
-                    var $notice = $('<div class="notice notice-success is-dismissible"><p>' +
-                        (response.data.message || 'Settings saved successfully') +
-                        '</p></div>');
-                    $form.before($notice);
+                    // Check if persistent note already exists, only create once
+                    if ($('#mmt-regeneration-note').length === 0) {
+                        var regenerationMessage = '<strong>Note:</strong> Settings changes will apply to new uploads automatically. ' +
+                            'To apply these settings to all existing media files, please visit the ' +
+                            '<a href="?page=mmt-settings&tab=sizes" style="text-decoration: underline;">Theme Image Sizes</a> ' +
+                            'tab and use the regeneration options.';
+                        
+                        var $noteNotice = $('<div id="mmt-regeneration-note" class="notice notice-info"></div>');
+                        $noteNotice.append($('<p></p>').html(regenerationMessage));
+                        $form.before($noteNotice);
+                    }
                     
-                    // Auto-dismiss after 3 seconds
+                    // Show short-lived success message
+                    var $successNotice = $('<div class="notice notice-success is-dismissible"></div>');
+                    $successNotice.append($('<p></p>').text(response.data.message || 'Settings saved successfully'));
+                    
+                    var $noteNotice = $('#mmt-regeneration-note');
+                    if ($noteNotice.length > 0) {
+                        $noteNotice.after($successNotice);
+                    } else {
+                        $form.before($successNotice);
+                    }
+                    
+                    // Auto-dismiss success notice after 3 seconds
                     setTimeout(function () {
-                        $notice.slideUp(function () {
+                        $successNotice.slideUp(function () {
                             $(this).remove();
                         });
                     }, 3000);
+                    
+                    console.log('Settings saved, notices displayed');
                 } else {
                     // Show error message
                     var $notice = $('<div class="notice notice-error is-dismissible"><p>' +
                         (response.data || 'Error saving settings') +
                         '</p></div>');
                     $form.before($notice);
+                    console.log('Settings save failed');
                 }
             },
             error: function () {

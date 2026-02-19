@@ -120,15 +120,24 @@
 /**
  * Theme Image Sizes Table
  */
+.mmt-image-sizes-table th:last-child {
+    text-align: center;
+}
 .mmt-image-sizes-table td {
     vertical-align: middle;
 }
 
-.mmt-formats {
+.mmt-formats-wrapper {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 8px;
+}
+
+.mmt-formats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
 }
 
 /**
@@ -136,7 +145,7 @@
  */
 .mmt-regenerate-size {
     display: inline-block;
-    margin: .5rem 0;
+    margin: 0;
     /* border-bottom: 1px solid #0073aa; */
     color: #0073aa;
     font-weight: 500;
@@ -182,7 +191,7 @@
     justify-content: center;
     width: 100px;
     height: 100px;
-    margin: 1rem;
+    margin: 4px;
     color: #808080;
     font-weight: 500;
     font-size: 12px;
@@ -421,7 +430,7 @@
  */
 .mmt-format-badge {
     display: inline-block;
-    padding: 4px 8px;
+    padding: 2px 8px;
     border-radius: 4px;
     font-size: 12px;
     font-weight: 600;
