@@ -39,7 +39,15 @@ class RegenerationManager {
             }
             
             $file = get_attached_file($attachment->ID);
-            if (!$file) {
+            if (!$file || !file_exists($file)) {
+                continue;
+            }
+            
+            // Load source image once for this attachment
+            try {
+                $imagick = new \Imagick($file);
+            } catch (\Exception $e) {
+                error_log('MMT RegenerationManager: Unable to load image: ' . $e->getMessage());
                 continue;
             }
             
@@ -47,10 +55,12 @@ class RegenerationManager {
             if ($size_name) {
                 if (isset($metadata['sizes'][$size_name]) && isset($image_sizes[$size_name])) {
                     $regenerated += self::regenerateSizeForAttachment(
+                        $imagick,
                         $file,
                         $metadata['sizes'][$size_name],
                         $image_sizes[$size_name],
-                        $size_name
+                        $size_name,
+                        $attachment->ID
                     );
                 }
             } else {
@@ -59,15 +69,20 @@ class RegenerationManager {
                     foreach ($metadata['sizes'] as $sz_name => $size_data) {
                         if (isset($image_sizes[$sz_name])) {
                             $regenerated += self::regenerateSizeForAttachment(
+                                $imagick,
                                 $file,
                                 $size_data,
                                 $image_sizes[$sz_name],
-                                $sz_name
+                                $sz_name,
+                                $attachment->ID
                             );
                         }
                     }
                 }
             }
+            
+            // Destroy imagick object after processing all sizes for this attachment
+            $imagick->destroy();
         }
         
         return $regenerated;
@@ -76,13 +91,15 @@ class RegenerationManager {
     /**
      * Regenerate a specific size for an attachment
      * 
+     * @param \Imagick $imagick
      * @param string $file
      * @param array $size_data
      * @param array $size_info
      * @param string $size_name
+     * @param int $attachment_id
      * @return int
      */
-    private static function regenerateSizeForAttachment($file, $size_data, $size_info, $size_name) {
+    private static function regenerateSizeForAttachment($imagick, $file, $size_data, $size_info, $size_name, $attachment_id) {
         $regenerated = 0;
         
         $size_file = str_replace(
@@ -95,7 +112,7 @@ class RegenerationManager {
         $height = isset($size_info['height']) ? $size_info['height'] : 0;
         $crop = isset($size_info['crop']) ? $size_info['crop'] : false;
         
-        if ($width && $height && file_exists($file)) {
+        if ($width && $height) {
             // Get quality settings
             $all_settings = FormatManager::getFormatSettings();
             $webp_quality = intval($all_settings['webp_quality'] ?? 80);
@@ -104,7 +121,7 @@ class RegenerationManager {
             $convert_gif = FormatManager::shouldConvertGif();
             
             // Get source image MIME type
-            $attachment = get_post(get_post()->ID);
+            $attachment = get_post($attachment_id);
             $source_mime = $attachment ? get_post_mime_type($attachment->ID) : 'image/jpeg';
             
             // Handle GIF files specially
@@ -113,13 +130,13 @@ class RegenerationManager {
                 return 0;
             }
             
-            // Always generate WebP
+            // Always generate WebP - pass imagick object
             $webp_file = preg_replace('/\.[^.]+$/', '.webp', $size_file);
-            if (ThumbnailGenerator::generateWebP($file, $webp_file, $width, $height, $crop, $webp_quality)) {
+            if (ThumbnailGenerator::generateWebP($imagick, $webp_file, $width, $height, $crop, $webp_quality)) {
                 $regenerated++;
             }
             
-            // Generate original format if enabled
+            // Generate original format if enabled - pass imagick object
             if (FormatManager::shouldKeepOriginal()) {
                 $format_map = [
                     'image/jpeg' => 'jpg',
@@ -130,15 +147,15 @@ class RegenerationManager {
                 $original_format = $format_map[$source_mime] ?? 'jpg';
                 $original_file = preg_replace('/\.[^.]+$/', '.' . $original_format, $size_file);
                 
-                if (ThumbnailGenerator::generateThumbnail($file, $original_file, $width, $height, $crop, $original_format, $original_quality)) {
+                if (ThumbnailGenerator::generateThumbnail($imagick, $original_file, $width, $height, $crop, $original_format, $original_quality)) {
                     $regenerated++;
                 }
             }
             
-            // Generate AVIF if enabled
+            // Generate AVIF if enabled - pass imagick object
             if (FormatManager::shouldGenerateAVIF()) {
                 $avif_file = preg_replace('/\.[^.]+$/', '.avif', $size_file);
-                if (ThumbnailGenerator::generateAVIF($file, $avif_file, $width, $height, $crop, $avif_quality)) {
+                if (ThumbnailGenerator::generateAVIF($imagick, $avif_file, $width, $height, $crop, $avif_quality)) {
                     $regenerated++;
                 }
             }

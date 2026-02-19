@@ -34,6 +34,14 @@ class UploadHooks {
             return $metadata;
         }
         
+        // Load source image once for all sizes
+        try {
+            $imagick = new \Imagick($source_path);
+        } catch (\Exception $e) {
+            error_log('MMT Upload Hook: Unable to load source image: ' . $e->getMessage());
+            return $metadata;
+        }
+        
         // Get format settings
         $all_settings = FormatManager::getFormatSettings();
         $webp_quality = intval($all_settings['webp_quality'] ?? 80);
@@ -69,10 +77,10 @@ class UploadHooks {
                             continue;
                         }
                         
-                        // Always generate WebP
+                        // Always generate WebP - pass imagick object
                         $webp_file = preg_replace('/\.[^.]+$/', '.webp', $size_file);
                         ThumbnailGenerator::generateWebP(
-                            $source_path,
+                            $imagick,
                             $webp_file,
                             $width,
                             $height,
@@ -80,7 +88,7 @@ class UploadHooks {
                             $webp_quality
                         );
                         
-                        // Generate original format if enabled
+                        // Generate original format if enabled - pass imagick object
                         if (FormatManager::shouldKeepOriginal()) {
                             $format_map = [
                                 'image/jpeg' => 'jpg',
@@ -92,7 +100,7 @@ class UploadHooks {
                             $original_file = preg_replace('/\.[^.]+$/', '.' . $original_format, $size_file);
                             
                             ThumbnailGenerator::generateThumbnail(
-                                $source_path,
+                                $imagick,
                                 $original_file,
                                 $width,
                                 $height,
@@ -102,11 +110,11 @@ class UploadHooks {
                             );
                         }
                         
-                        // Generate AVIF if enabled
+                        // Generate AVIF if enabled - pass imagick object
                         if (FormatManager::shouldGenerateAVIF()) {
                             $avif_file = preg_replace('/\.[^.]+$/', '.avif', $size_file);
                             ThumbnailGenerator::generateAVIF(
-                                $source_path,
+                                $imagick,
                                 $avif_file,
                                 $width,
                                 $height,
@@ -125,6 +133,9 @@ class UploadHooks {
                 }
             }
         }
+        
+        // Destroy imagick object after processing all sizes
+        $imagick->destroy();
         
         return $metadata;
     }

@@ -554,6 +554,15 @@ class Ajax {
                 ]);
             }
             
+            $file = get_attached_file($attachment_id);
+            if (!$file || !file_exists($file)) {
+                wp_send_json_success([
+                    'attachment_id' => $attachment_id,
+                    'regenerated' => 0,
+                    'message' => 'Skipped (file not found)',
+                ]);
+            }
+            
             $metadata = wp_get_attachment_metadata($attachment_id);
             if (empty($metadata) || empty($metadata['sizes'])) {
                 wp_send_json_success([
@@ -563,12 +572,14 @@ class Ajax {
                 ]);
             }
             
-            $file = get_attached_file($attachment_id);
-            if (!$file || !file_exists($file)) {
+            // Load source image once for all sizes
+            try {
+                $imagick = new \Imagick($file);
+            } catch (\Exception $e) {
                 wp_send_json_success([
                     'attachment_id' => $attachment_id,
                     'regenerated' => 0,
-                    'message' => 'Skipped (file not found)',
+                    'message' => 'Skipped (unable to open file)',
                 ]);
             }
             
@@ -583,7 +594,6 @@ class Ajax {
             $convert_gif = FormatManager::shouldConvertGif();
             
             // Get source image MIME type
-            $attachment = get_post($attachment_id);
             $source_mime = $attachment ? get_post_mime_type($attachment->ID) : 'image/jpeg';
             
             foreach ($metadata['sizes'] as $size_name => $size_data) {
@@ -603,13 +613,13 @@ class Ajax {
                         continue;
                     }
                     
-                    // Generate WebP
+                    // Generate WebP - pass imagick object
                     $webp_file = preg_replace('/\.[^\.]+$/', '.webp', $size_file);
-                    if (\ModernMediaThumbnails\ThumbnailGenerator::generateWebP($file, $webp_file, $width, $height, $crop, $webp_quality)) {
+                    if (\ModernMediaThumbnails\ThumbnailGenerator::generateWebP($imagick, $webp_file, $width, $height, $crop, $webp_quality)) {
                         $regenerated++;
                     }
                     
-                    // Generate original format if enabled
+                    // Generate original format if enabled - pass imagick object
                     if (FormatManager::shouldKeepOriginal()) {
                         $format_map = [
                             'image/jpeg' => 'jpg',
@@ -620,15 +630,15 @@ class Ajax {
                         $original_format = $format_map[$source_mime] ?? 'jpg';
                         $original_file = preg_replace('/\.[^\.]+$/', '.' . $original_format, $size_file);
                         
-                        if (\ModernMediaThumbnails\ThumbnailGenerator::generateThumbnail($file, $original_file, $width, $height, $crop, $original_format, $original_quality)) {
+                        if (\ModernMediaThumbnails\ThumbnailGenerator::generateThumbnail($imagick, $original_file, $width, $height, $crop, $original_format, $original_quality)) {
                             $regenerated++;
                         }
                     }
                     
-                    // Generate AVIF if enabled
+                    // Generate AVIF if enabled - pass imagick object
                     if (FormatManager::shouldGenerateAVIF()) {
                         $avif_file = preg_replace('/\.[^\.]+$/', '.avif', $size_file);
-                        if (\ModernMediaThumbnails\ThumbnailGenerator::generateAVIF($file, $avif_file, $width, $height, $crop, $avif_quality)) {
+                        if (\ModernMediaThumbnails\ThumbnailGenerator::generateAVIF($imagick, $avif_file, $width, $height, $crop, $avif_quality)) {
                             $regenerated++;
                         }
                     }
@@ -641,6 +651,9 @@ class Ajax {
                     }
                 }
             }
+            
+            // Destroy imagick object after processing all sizes
+            $imagick->destroy();
             
             wp_send_json_success([
                 'attachment_id' => $attachment_id,
@@ -718,15 +731,7 @@ class Ajax {
                     'regenerated' => 0,
                     'message' => 'Skipped (not an image)',
                 ]);
-            }
-            
-            $metadata = wp_get_attachment_metadata($attachment_id);
-            if (empty($metadata) || empty($metadata['sizes'])) {
-                wp_send_json_success([
-                    'attachment_id' => $attachment_id,
-                    'regenerated' => 0,
-                    'message' => 'Skipped (no thumbnails)',
-                ]);
+                return;
             }
             
             $file = get_attached_file($attachment_id);
@@ -736,6 +741,29 @@ class Ajax {
                     'regenerated' => 0,
                     'message' => 'Skipped (file not found)',
                 ]);
+                return;
+            }
+            
+            $metadata = wp_get_attachment_metadata($attachment_id);
+            if (empty($metadata) || empty($metadata['sizes'])) {
+                wp_send_json_success([
+                    'attachment_id' => $attachment_id,
+                    'regenerated' => 0,
+                    'message' => 'Skipped (no thumbnails)',
+                ]);
+                return;
+            }
+            
+            // Load source image once
+            try {
+                $imagick = new \Imagick($file);
+            } catch (\Exception $e) {
+                wp_send_json_success([
+                    'attachment_id' => $attachment_id,
+                    'regenerated' => 0,
+                    'message' => 'Skipped (unable to open file)',
+                ]);
+                return;
             }
             
             // Process only the specified size for this attachment
@@ -747,6 +775,7 @@ class Ajax {
                     'regenerated' => 0,
                     'message' => 'Skipped (size not applicable)',
                 ]);
+                return;
             }
             
             $size_data = $metadata['sizes'][$size_name];
@@ -764,20 +793,19 @@ class Ajax {
                 $convert_gif = FormatManager::shouldConvertGif();
                 
                 // Get source image MIME type
-                $attachment = get_post($attachment_id);
                 $source_mime = $attachment ? get_post_mime_type($attachment->ID) : 'image/jpeg';
                 
                 // Handle GIF files specially
                 if ($source_mime === 'image/gif' && !$convert_gif) {
                     // Don't generate WebP/AVIF for GIFs when not converting
                 } else {
-                    // Generate WebP
+                    // Generate WebP - pass imagick object
                     $webp_file = preg_replace('/\.[^\.]+$/', '.webp', $size_file);
-                    if (\ModernMediaThumbnails\ThumbnailGenerator::generateWebP($file, $webp_file, $width, $height, $crop, $webp_quality)) {
+                    if (\ModernMediaThumbnails\ThumbnailGenerator::generateWebP($imagick, $webp_file, $width, $height, $crop, $webp_quality)) {
                         $regenerated++;
                     }
                     
-                    // Generate original format if enabled
+                    // Generate original format if enabled - pass imagick object
                     if (FormatManager::shouldKeepOriginal()) {
                         $format_map = [
                             'image/jpeg' => 'jpg',
@@ -788,15 +816,15 @@ class Ajax {
                         $original_format = $format_map[$source_mime] ?? 'jpg';
                         $original_file = preg_replace('/\.[^\.]+$/', '.' . $original_format, $size_file);
                         
-                        if (\ModernMediaThumbnails\ThumbnailGenerator::generateThumbnail($file, $original_file, $width, $height, $crop, $original_format, $original_quality)) {
+                        if (\ModernMediaThumbnails\ThumbnailGenerator::generateThumbnail($imagick, $original_file, $width, $height, $crop, $original_format, $original_quality)) {
                             $regenerated++;
                         }
                     }
                     
-                    // Generate AVIF if enabled
+                    // Generate AVIF if enabled - pass imagick object
                     if (FormatManager::shouldGenerateAVIF()) {
                         $avif_file = preg_replace('/\.[^\.]+$/', '.avif', $size_file);
-                        if (\ModernMediaThumbnails\ThumbnailGenerator::generateAVIF($file, $avif_file, $width, $height, $crop, $avif_quality)) {
+                        if (\ModernMediaThumbnails\ThumbnailGenerator::generateAVIF($imagick, $avif_file, $width, $height, $crop, $avif_quality)) {
                             $regenerated++;
                         }
                     }
@@ -809,6 +837,9 @@ class Ajax {
                     }
                 }
             }
+            
+            // Destroy imagick object after processing
+            $imagick->destroy();
             
             wp_send_json_success([
                 'attachment_id' => $attachment_id,

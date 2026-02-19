@@ -14,7 +14,7 @@ class ThumbnailGenerator {
     /**
      * Generate thumbnail in specified format using Imagick
      * 
-     * @param string $source_path Path to source image
+     * @param string|object $source Source - either file path (string) or Imagick object
      * @param string $dest_path Path where thumbnail will be saved
      * @param int $width Target width
      * @param int $height Target height
@@ -23,13 +23,24 @@ class ThumbnailGenerator {
      * @param int $quality Image quality (0-100), defaults to 80
      * @return bool
      */
-    public static function generateThumbnail($source_path, $dest_path, $width, $height, $crop, $format, $quality = 80) {
+    public static function generateThumbnail($source, $dest_path, $width, $height, $crop, $format, $quality = 80) {
         try {
-            if (!file_exists($source_path)) {
-                return false;
+            // If source is a string, it's a file path - load it
+            // If it's an Imagick object, use it directly
+            if (is_string($source)) {
+                if (!file_exists($source)) {
+                    return false;
+                }
+                $imagick = new \Imagick($source);
+                $should_destroy = true;
+            } else {
+                // Assume it's an Imagick object
+                $imagick = $source;
+                $should_destroy = false;
             }
             
-            $imagick = new \Imagick($source_path);
+            // Clone the imagick object to avoid modifying the original
+            $imagick = $imagick->clone();
             
             // Get original dimensions
             $orig_width = $imagick->getImageWidth();

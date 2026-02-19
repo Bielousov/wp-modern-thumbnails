@@ -422,7 +422,6 @@ class SettingsPage {
                             nonce: window.mmtData.settingsNonce
                         },
                         success: function(response) {
-                            console.log('Metric response for ' + metricKey + ':', response);
                             if (response.success && response.data && response.data.value) {
                                 $('#mmt-media-stats tr[data-stat="' + metricKey + '"] .mmt-stat-value').text(response.data.value);
                             } else {
@@ -500,54 +499,88 @@ class SettingsPage {
     
     /**
      * Get total size of thumbnail variants on disk
+     * Counts only files matching the thumbnail naming pattern: -WIDTHxHEIGHT.extension
+     * This matches what clear-thumbnails.sh actually deletes
      * 
      * @return int Total size in bytes
      */
     public static function getThumbnailFileSize() {
+        // Collect all unique directories containing media files
+        $media_directories = [];
+        
         $attachments = get_posts([
             'post_type' => 'attachment',
             'numberposts' => -1,
             'post_status' => 'inherit',
         ]);
         
-        $total_size = 0;
-        
         foreach ($attachments as $attachment) {
-            $metadata = wp_get_attachment_metadata($attachment->ID);
-            
-            if (empty($metadata) || empty($metadata['sizes'])) {
-                continue;
-            }
-            
-            // Get the directory of the original file
             $original_file = get_attached_file($attachment->ID);
-            if (!$original_file) {
+            if ($original_file) {
+                $dir = dirname($original_file);
+                $media_directories[$dir] = true;
+            }
+        }
+        
+        // Count only thumbnail files matching -WIDTHxHEIGHT pattern
+        $total_size = 0;
+        foreach (array_keys($media_directories) as $dir) {
+            $files = @scandir($dir);
+            if ($files === false) {
                 continue;
             }
             
-            $dir = dirname($original_file);
-            
-            // Sum up all thumbnail files (original + any variants like webp, avif, etc.)
-            foreach ($metadata['sizes'] as $size_name => $size_data) {
-                $thumbnail_file = $dir . '/' . $size_data['file'];
-                
-                // Get the base path without extension
-                $size_base = preg_replace('/\.[^\.]+$/', '', $thumbnail_file);
-                
-                // Find all files matching this base path with any extension
-                $matching_files = glob($size_base . '.*');
-                
-                if (!empty($matching_files)) {
-                    foreach ($matching_files as $file) {
-                        if (file_exists($file)) {
-                            $total_size += filesize($file);
-                        }
+            foreach ($files as $file) {
+                // Match pattern: -WIDTHxHEIGHT.extension (e.g., -150x150.jpg, -300x300.webp)
+                if (preg_match('/-\d+x\d+\.(jpg|jpeg|png|gif|webp|avif)$/i', $file)) {
+                    $filepath = $dir . DIRECTORY_SEPARATOR . $file;
+                    if (file_exists($filepath)) {
+                        $total_size += filesize($filepath);
                     }
                 }
             }
         }
         
         return $total_size;
+    }
+    
+    /**
+     * Recursively calculate directory size
+     * 
+     * @param string $path Directory path
+     * @return int Total size in bytes
+     */
+    private static function getDirectorySize($path) {
+        $size = 0;
+        
+        if (!is_dir($path)) {
+            return 0;
+        }
+        
+        try {
+            $files = @scandir($path);
+            if ($files === false) {
+                return 0;
+            }
+            
+            foreach ($files as $file) {
+                if ($file === '.' || $file === '..') {
+                    continue;
+                }
+                
+                $filepath = $path . DIRECTORY_SEPARATOR . $file;
+                
+                if (is_dir($filepath)) {
+                    $size += self::getDirectorySize($filepath);
+                } elseif (is_file($filepath)) {
+                    $size += filesize($filepath);
+                }
+            }
+        } catch (\Exception $e) {
+            // Silently handle errors
+        }
+        
+        return $size;
     }
     
     /**
