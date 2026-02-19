@@ -1,0 +1,444 @@
+/* Modern Media Thumbnails Admin CSS */
+
+/**
+ * Toggle Switch Component (Tailwind-style)
+ */
+.mmt-switch {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+}
+
+.mmt-switch input[type="checkbox"] {
+    display: none;
+}
+
+.mmt-switch .toggle {
+    position: relative;
+    display: inline-block;
+    width: 52px;
+    height: 28px;
+    background-color: #cbd5e1;
+    border-radius: 34px;
+    transition: background-color 0.3s ease;
+    margin-right: 8px;
+}
+
+.mmt-switch input[type="checkbox"]:checked + .toggle {
+    background-color: #10b981;
+}
+
+.mmt-switch .toggle::after {
+    content: '';
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    background-color: white;
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+    transition: left 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.mmt-switch input[type="checkbox"]:checked + .toggle::after {
+    left: 26px;
+}
+
+.mmt-switch:hover .toggle {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/**
+ * Settings Grid Layout
+ */
+.mmt-settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 24px;
+    margin-bottom: 24px;
+}
+
+.mmt-setting-card {
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    transition: box-shadow 0.2s ease;
+}
+
+.mmt-setting-card:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.mmt-setting-card h3 {
+    margin: 0 0 12px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.mmt-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.mmt-card-header h3 {
+    margin: 0;
+    flex: 1;
+}
+
+.mmt-switch-compact {
+    flex-shrink: 0;
+}
+
+.mmt-card-description {
+    margin: 0;
+    font-size: 13px;
+    color: #6b7280;
+    line-height: 1.5;
+}
+
+.mmt-setting-card .mmt-switch {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.mmt-setting-card .mmt-switch span:last-child {
+    display: block;
+    font-size: 13px;
+    color: #6b7280;
+    line-height: 1.5;
+}
+
+/**
+ * Regeneration Buttons
+ */
+.mmt-regenerate-size {
+    min-width: 100px;
+}
+
+.mmt-regenerate-size:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+#mmt-regenerate-all {
+    min-width: 200px;
+}
+
+#mmt-regenerate-all:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+#mmt-regenerate-message {
+    margin-bottom: 15px;
+}
+
+#mmt-regenerate-message .notice {
+    margin: 0;
+}
+
+/**
+ * Resolution Box
+ * Visual representation of image size with crop mode indication
+ */
+.mmt-resolution-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f5f5f5;
+    border-radius: 8px;
+    color: #808080;
+    font-weight: 600;
+    font-size: 14px;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.mmt-resolution-box:hover {
+    transform: scale(1.05);
+}
+
+/* Soft crop mode - intersecting dashed rectangles */
+.mmt-resolution-box.soft-crop::before {
+    content: '';
+    position: absolute;
+    width: 50%;
+    height: 85%;
+    border: 2px dashed #b0b0b0;
+    border-radius: 3px;
+}
+
+.mmt-resolution-box.soft-crop::after {
+    content: '';
+    position: absolute;
+    width: 85%;
+    height: 50%;
+    border: 2px dashed #b0b0b0;
+    border-radius: 3px;
+}
+
+/* Hard crop mode - solid square */
+.mmt-resolution-box.hard-crop::before {
+    content: '';
+    position: absolute;
+    width: 70%;
+    height: 70%;
+    background-color: #d8d8d8;
+    border-radius: 3px;
+}
+
+.mmt-resolution-box > div {
+    position: relative;
+    z-index: 2;
+}
+
+.mmt-resolution-box small {
+    display: block;
+    font-size: 12px;
+    opacity: 0.7;
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-right: 4px;
+    margin-bottom: 4px;
+}
+
+/**
+ * Format Controls Container
+ */
+.mmt-format-controls {
+    display: flex;
+    gap: 12px;
+    padding: 12px 0;
+    align-items: flex-start;
+}
+
+/**
+ * Format Flip Switch
+ */
+.mmt-format-switch {
+    flex: 1;
+}
+
+.mmt-switch-label {
+    display: flex;
+    align-items: center;
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+}
+
+.mmt-switch-label input[type="radio"] {
+    display: none;
+}
+
+.mmt-switch-background {
+    position: relative;
+    width: 100px;
+    height: 50px;
+    background-color: #e0e0e0;
+    border-radius: 25px;
+    transition: background-color 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    padding: 3px;
+    box-sizing: border-box;
+}
+
+.mmt-switch-toggle {
+    position: absolute;
+    width: 44px;
+    height: 44px;
+    background-color: white;
+    border-radius: 50%;
+    transition: left 0.3s ease;
+    left: 3px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.mmt-switch-label input[type="radio"]:checked ~ .mmt-switch-background {
+    background-color: #00a0d2;
+}
+
+.mmt-switch-label input[type="radio"]:checked ~ .mmt-switch-background .mmt-switch-toggle {
+    left: 53px;
+}
+
+.mmt-switch-text-left,
+.mmt-switch-text-right {
+    position: absolute;
+    font-size: 11px;
+    font-weight: 600;
+    top: 17px;
+    z-index: 1;
+}
+
+.mmt-switch-text-left {
+    left: 8px;
+    color: #333;
+}
+
+.mmt-switch-text-right {
+    right: 8px;
+    color: white;
+}
+
+.mmt-switch-label input[type="radio"]:checked ~ .mmt-switch-text-left {
+    color: #999;
+}
+
+.mmt-switch-label input[type="radio"]:checked ~ .mmt-switch-text-right {
+    color: #333;
+}
+
+/**
+ * Format Tile
+ * Styled checkbox tile for format selection
+ */
+.mmt-format-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 16px 12px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background-color: #fafafa;
+    position: relative;
+    min-height: 95px;
+}
+
+.mmt-format-tile:hover {
+    border-color: #999;
+    background-color: #f0f0f0;
+}
+
+.mmt-format-tile input[type="checkbox"] {
+    cursor: pointer;
+    width: 18px;
+    height: 18px;
+    margin: 0 0 8px 0;
+}
+
+.mmt-format-tile input[type="checkbox"]:checked {
+    accent-color: #0073aa;
+}
+
+.mmt-format-tile.checked {
+    border-color: #0073aa;
+    background-color: #f0f8ff;
+}
+
+/**
+ * Format Tile Label
+ */
+.mmt-format-tile-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    flex: 1;
+    width: 100%;
+    justify-content: center;
+}
+
+/**
+ * AVIF Help Tooltip
+ */
+.mmt-avif-help {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    background-color: #9c27b0;
+    color: white;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: help;
+    transition: all 0.2s ease;
+}
+
+.mmt-avif-help:hover {
+    background-color: #7b1fa2;
+    transform: scale(1.1);
+}
+
+/**
+ * Format Badges
+ */
+.mmt-format-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.mmt-format-original {
+    background-color: #0073aa;
+    color: white;
+}
+
+.mmt-format-webp {
+    background-color: #00a0d2;
+    color: white;
+}
+
+.mmt-format-avif {
+    background-color: #9c27b0;
+    color: white;
+}
+
+/**
+ * Format Error Message
+ */
+.mmt-format-error {
+    font-size: 12px;
+    color: #d32f2f;
+    margin-top: 8px;
+    display: none;
+}
+
+/**
+ * AVIF Information Section
+ */
+.mmt-avif-info-section {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #f3e5f5;
+    border-left: 4px solid #9c27b0;
+    border-radius: 4px;
+}
+
+.mmt-avif-info-section h3 {
+    margin-top: 0;
+    color: #6a1b9a;
+}
+
+.mmt-avif-info-section p {
+    margin: 8px 0 0 0;
+    color: #444;
+    font-size: 13px;
+}
