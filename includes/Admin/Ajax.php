@@ -9,6 +9,7 @@ namespace ModernMediaThumbnails\Admin;
 
 use ModernMediaThumbnails\FormatManager;
 use ModernMediaThumbnails\WordPress\RegenerationManager;
+use ModernMediaThumbnails\Admin\SettingsPage;
 
 class Ajax {
     
@@ -93,6 +94,35 @@ class Ajax {
     }
     
     /**
+     * Get media statistics for AJAX
+     * 
+     * @return void
+     */
+    public static function getMediaStats() {
+        check_ajax_referer('mmt_regenerate_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Insufficient permissions');
+        }
+        
+        try {
+            $media_count = SettingsPage::getMediaFileCount();
+            $original_size = SettingsPage::getOriginalFileSize();
+            $thumbnail_size = SettingsPage::getThumbnailFileSize();
+            $total_size = $original_size + $thumbnail_size;
+            
+            wp_send_json_success([
+                'media_count' => $media_count,
+                'original_size' => SettingsPage::formatBytes($original_size),
+                'thumbnail_size' => SettingsPage::formatBytes($thumbnail_size),
+                'total_size' => SettingsPage::formatBytes($total_size),
+            ]);
+        } catch (\Exception $e) {
+            wp_send_json_error('Error calculating statistics: ' . $e->getMessage());
+        }
+    }
+    
+    /**
      * Register AJAX handlers
      * 
      * @return void
@@ -101,5 +131,6 @@ class Ajax {
         add_action('wp_ajax_mmt_regenerate_all', [self::class, 'regenerateAll']);
         add_action('wp_ajax_mmt_regenerate_size', [self::class, 'regenerateSize']);
         add_action('wp_ajax_mmt_save_settings', [self::class, 'saveSettings']);
+        add_action('wp_ajax_mmt_get_media_stats', [self::class, 'getMediaStats']);
     }
 }

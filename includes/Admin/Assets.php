@@ -16,7 +16,19 @@ class Assets {
      * @return void
      */
     public static function enqueue($hook) {
-        if ($hook !== 'settings_page_mmt-settings') {
+        // Debug: Log which hook we're receiving
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('MMT Assets enqueue called with hook: ' . $hook);
+        }
+        
+        // Load on settings pages - both the specific page and options-general page
+        $should_load = (
+            $hook === 'settings_page_mmt-settings' ||
+            $hook === 'toplevel_page_mmt-settings' ||
+            (isset($_GET['page']) && $_GET['page'] === 'mmt-settings')
+        );
+        
+        if (!$should_load) {
             return;
         }
         

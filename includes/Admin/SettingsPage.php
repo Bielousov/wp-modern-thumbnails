@@ -293,10 +293,227 @@ class SettingsPage {
                             </tr>
                         </tbody>
                     </table>
+                    
+                    <h3><?php esc_html_e('Media Library Statistics', 'modern-media-thumbnails'); ?></h3>
+                    <table class="wp-list-table widefat striped" id="mmt-media-stats">
+                        <thead>
+                            <tr>
+                                <th><?php esc_html_e('Metric', 'modern-media-thumbnails'); ?></th>
+                                <th><?php esc_html_e('Value', 'modern-media-thumbnails'); ?></th>
+                                <th><?php esc_html_e('Description', 'modern-media-thumbnails'); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody id="mmt-media-stats-body">
+                            <tr data-stat="media-count">
+                                <td><strong><?php esc_html_e('Total Media Files', 'modern-media-thumbnails'); ?></strong></td>
+                                <td class="mmt-stat-value"><span class="mmt-skeleton mmt-skeleton-text" style="width: 80px;"></span></td>
+                                <td><?php esc_html_e('Total number of media files in the library.', 'modern-media-thumbnails'); ?></td>
+                            </tr>
+                            <tr data-stat="original-size">
+                                <td><strong><?php esc_html_e('Original Files Size', 'modern-media-thumbnails'); ?></strong></td>
+                                <td class="mmt-stat-value"><span class="mmt-skeleton mmt-skeleton-text" style="width: 90px;"></span></td>
+                                <td><?php esc_html_e('Disk space occupied by original/main media files.', 'modern-media-thumbnails'); ?></td>
+                            </tr>
+                            <tr data-stat="thumbnail-size">
+                                <td><strong><?php esc_html_e('Thumbnails Size', 'modern-media-thumbnails'); ?></strong></td>
+                                <td class="mmt-stat-value"><span class="mmt-skeleton mmt-skeleton-text" style="width: 85px;"></span></td>
+                                <td><?php esc_html_e('Disk space occupied by all thumbnail variants.', 'modern-media-thumbnails'); ?></td>
+                            </tr>
+                            <tr data-stat="total-size" style="background-color: #f0f0f0; font-weight: bold;">
+                                <td><strong><?php esc_html_e('Total Media Size', 'modern-media-thumbnails'); ?></strong></td>
+                                <td class="mmt-stat-value"><span class="mmt-skeleton mmt-skeleton-text" style="width: 95px;"></span></td>
+                                <td><?php esc_html_e('Total disk space occupied by all media files.', 'modern-media-thumbnails'); ?></td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             <?php endif; ?>
         </div>
+        <script type="text/javascript">
+            console.log('MMT Settings page loaded');
+            console.log('jQuery available:', typeof jQuery !== 'undefined');
+            console.log('mmtData available:', typeof mmtData !== 'undefined');
+            if (typeof mmtData !== 'undefined') {
+                console.log('mmtData.nonce:', mmtData.nonce);
+                console.log('mmtData.ajaxUrl:', mmtData.ajaxUrl);
+            }
+            console.log('Stats table exist:', document.getElementById('mmt-media-stats') !== null);
+            
+            // Inline fallback - load media stats without relying on external admin.js
+            (function() {
+                var $ = jQuery;
+                
+                // Create mmtData if not available from wp_localize_script
+                if (typeof mmtData === 'undefined') {
+                    console.log('Creating fallback mmtData object');
+                    window.mmtData = {
+                        nonce: document.querySelector('input[name="mmt_settings_nonce"]') ? document.querySelector('input[name="mmt_settings_nonce"]').value : '',
+                        ajaxUrl: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>'
+                    };
+                    
+                    // Create nonce if still empty
+                    if (!window.mmtData.nonce) {
+                        // Try to get from inline nonce field
+                        var nonceField = document.querySelector('[name="mmt_regenerate_nonce"]');
+                        if (nonceField) {
+                            window.mmtData.nonce = nonceField.value;
+                        }
+                    }
+                }
+                
+                console.log('Using mmtData:', window.mmtData);
+                
+                // Load media statistics
+                function loadMediaStats() {
+                    console.log('Loading media stats...');
+                    
+                    // Show loading state
+                    $('#mmt-media-stats .mmt-stat-value').html('<span style="color: #999; font-style: italic;">Calculating…</span>');
+                    
+                    $.ajax({
+                        url: window.mmtData.ajaxUrl,
+                        type: 'POST',
+                        dataType: 'json',
+                        timeout: 30000,
+                        data: {
+                            action: 'mmt_get_media_stats',
+                            nonce: window.mmtData.nonce
+                        },
+                        success: function(response) {
+                            console.log('Stats response:', response);
+                            if (response.success && response.data) {
+                                $('#mmt-media-stats tr[data-stat="media-count"] .mmt-stat-value').text(response.data.media_count);
+                                $('#mmt-media-stats tr[data-stat="original-size"] .mmt-stat-value').text(response.data.original_size);
+                                $('#mmt-media-stats tr[data-stat="thumbnail-size"] .mmt-stat-value').text(response.data.thumbnail_size);
+                                $('#mmt-media-stats tr[data-stat="total-size"] .mmt-stat-value').text(response.data.total_size);
+                            } else {
+                                $('#mmt-media-stats .mmt-stat-value').html('<span style="color: red;">Failed to calculate</span>');
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            console.error('AJAX error:', status, error, xhr.responseText);
+                            $('#mmt-media-stats .mmt-stat-value').html('<span style="color: red;">Failed to calculate</span>');
+                        }
+                    });
+                }
+                
+                // Run when jQuery is ready
+                $(document).ready(function() {
+                    loadMediaStats();
+                });
+            })();
+        </script>
         <?php
+    }
+    
+    /**
+     * Get total count of media files
+     * 
+     * @return int Total number of media files
+     */
+    public static function getMediaFileCount() {
+        $attachments = get_posts([
+            'post_type' => 'attachment',
+            'numberposts' => -1,
+            'post_status' => 'inherit',
+        ]);
+        
+        return count($attachments);
+    }
+    
+    /**
+     * Get total size of original media files on disk
+     * 
+     * @return int Total size in bytes
+     */
+    public static function getOriginalFileSize() {
+        $attachments = get_posts([
+            'post_type' => 'attachment',
+            'numberposts' => -1,
+            'post_status' => 'inherit',
+        ]);
+        
+        $total_size = 0;
+        
+        foreach ($attachments as $attachment) {
+            $file_path = get_attached_file($attachment->ID);
+            if ($file_path && file_exists($file_path)) {
+                $total_size += filesize($file_path);
+            }
+        }
+        
+        return $total_size;
+    }
+    
+    /**
+     * Get total size of thumbnail variants on disk
+     * 
+     * @return int Total size in bytes
+     */
+    public static function getThumbnailFileSize() {
+        $attachments = get_posts([
+            'post_type' => 'attachment',
+            'numberposts' => -1,
+            'post_status' => 'inherit',
+        ]);
+        
+        $total_size = 0;
+        
+        foreach ($attachments as $attachment) {
+            $metadata = wp_get_attachment_metadata($attachment->ID);
+            
+            if (empty($metadata) || empty($metadata['sizes'])) {
+                continue;
+            }
+            
+            $upload_dir = wp_upload_dir();
+            $base_path = $upload_dir['basedir'];
+            
+            // Get the directory of the original file
+            $original_file = get_attached_file($attachment->ID);
+            if (!$original_file) {
+                continue;
+            }
+            
+            $dir = dirname($original_file);
+            
+            // Sum up all thumbnail files
+            foreach ($metadata['sizes'] as $size_name => $size_data) {
+                $thumbnail_file = $dir . '/' . $size_data['file'];
+                
+                if (file_exists($thumbnail_file)) {
+                    $total_size += filesize($thumbnail_file);
+                }
+            }
+        }
+        
+        return $total_size;
+    }
+    
+    /**
+     * Get total size of media files on disk
+     * 
+     * @return int Total size in bytes
+     */
+    public static function getMediaFileSize() {
+        return self::getOriginalFileSize() + self::getThumbnailFileSize();
+    }
+    
+    /**
+     * Convert bytes to human-readable format
+     * 
+     * @param int $bytes
+     * @param int $precision
+     * @return string
+     */
+    public static function formatBytes($bytes, $precision = 2) {
+        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        
+        for ($i = 0; $bytes > 1024 && $i < count($units) - 1; $i++) {
+            $bytes /= 1024;
+        }
+        
+        return round($bytes, $precision) . ' ' . $units[$i];
     }
     
     /**
