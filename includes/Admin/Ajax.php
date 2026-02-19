@@ -853,6 +853,50 @@ class Ajax {
     }
     
     /**
+     * Handle AJAX regeneration of a single attachment (for bulk actions)
+     * 
+     * @return void
+     */
+    public static function regenerateSingle() {
+        // Check nonce - use correct action name
+        check_ajax_referer('mmt_bulk_action_nonce', '_wpnonce');
+        
+        if (!current_user_can('edit_posts')) {
+            wp_send_json_error('Insufficient permissions');
+        }
+        
+        $post_id = isset($_POST['post_id']) ? intval($_POST['post_id']) : 0;
+        
+        if (!$post_id) {
+            wp_send_json_error('Invalid post ID');
+        }
+        
+        // Verify attachment exists
+        $attachment = get_post($post_id);
+        if (!$attachment || 'attachment' !== $attachment->post_type) {
+            wp_send_json_error('Invalid attachment');
+        }
+        
+        try {
+            // Regenerate all sizes for this attachment
+            $regenerated = self::regenerateAttachmentSize($post_id, null);
+            
+            wp_send_json_success([
+                'message' => sprintf(
+                    'Regenerated %d format(s) for media #%d',
+                    $regenerated,
+                    $post_id
+                ),
+                'post_id' => $post_id,
+                'count' => $regenerated
+            ]);
+        } catch (\Exception $e) {
+            error_log('Error regenerating attachment ' . $post_id . ': ' . $e->getMessage());
+            wp_send_json_error('Error regenerating attachment');
+        }
+    }
+    
+    /**
      * Register AJAX handlers
      * 
      * @return void
@@ -860,6 +904,7 @@ class Ajax {
     public static function register() {
         add_action('wp_ajax_mmt_regenerate_all', [self::class, 'regenerateAll']);
         add_action('wp_ajax_mmt_regenerate_size', [self::class, 'regenerateSize']);
+        add_action('wp_ajax_mmt_regenerate_single', [self::class, 'regenerateSingle']);
         add_action('wp_ajax_mmt_save_settings', [self::class, 'saveSettings']);
         add_action('wp_ajax_mmt_get_media_count', [self::class, 'getMediaCount']);
         add_action('wp_ajax_mmt_get_original_size', [self::class, 'getOriginalSize']);

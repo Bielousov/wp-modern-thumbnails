@@ -1,0 +1,54 @@
+/**
+ * Bulk Actions UI Styles
+ * 
+ * Styles for the bulk actions UI on the media library page
+ */
+
+#the-list tr.mmt-processing {
+    opacity: 0.66;
+    transition: opacity 0.3s ease;
+}
+
+#the-list tr.mmt-processing .media-icon {
+    position: relative;
+
+    &::before {
+        content: '';
+        animation: mmt-spin 1s linear infinite;
+        position: absolute;
+        z-index: 1;
+        width: 24px;
+        height: 24px;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        border: 3px solid transparent;
+        border-top-color: var(--wp-admin-theme-color);
+        border-right-color: var(--wp-admin-theme-color-darker-20);
+        border-radius: 50%;
+    }
+}
+
+@keyframes mmt-spin {
+    to {
+        transform: translate(-50%, -50%) rotate(360deg);
+    }
+}
+
+#the-list tr.mmt-processing .media-icon img {
+    opacity: 0.33;
+    filter: blur(1px);
+}
+
+
+#mmt-bulk-notice {
+    margin-bottom: 20px;
+}
+
+#mmt-bulk-notice p {
+    margin: 0;
+}
+
+#mmt-progress {
+    font-weight: 500;
+}

@@ -51,7 +51,7 @@ class UploadHooks {
         $convert_gif = FormatManager::shouldConvertGif();
         
         // Get source image MIME type
-        $source_mime = get_post_mime_type(get_post()->ID) ?: 'image/jpeg';
+        $source_mime = get_post_mime_type($attachment_id) ?: 'image/jpeg';
         
         // Always generate WebP for all thumbnails
         $image_sizes = ImageSizeManager::getAllImageSizes();

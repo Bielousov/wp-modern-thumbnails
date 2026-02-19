@@ -31,7 +31,10 @@ class Assets {
         // Load minimal CSS on media settings page for the formats display
         $should_load_media = ($hook === 'options-media.php');
         
-        if (!$should_load_full && !$should_load_media) {
+        // Load bulk actions on media library page
+        $should_load_upload = ($hook === 'upload.php');
+        
+        if (!$should_load_full && !$should_load_media && !$should_load_upload) {
             return;
         }
         
@@ -46,6 +49,44 @@ class Assets {
             [],
             $plugin_version
         );
+        
+        // Enqueue media settings CSS on media page
+        if ($should_load_media) {
+            wp_enqueue_style(
+                'mmt-media-settings',
+                $plugin_url . 'css/media-settings.css',
+                [],
+                $plugin_version
+            );
+        }
+        
+        // Enqueue bulk actions script on upload/media library page
+        if ($should_load_upload) {
+            wp_enqueue_style(
+                'mmt-bulk-actions',
+                $plugin_url . 'css/bulk-actions.css',
+                [],
+                $plugin_version
+            );
+            
+            wp_enqueue_script(
+                'mmt-bulk-actions',
+                $plugin_url . 'js/bulk-actions.js',
+                [],
+                $plugin_version,
+                true
+            );
+            
+            // Localize script with AJAX URL and nonce
+            wp_localize_script(
+                'mmt-bulk-actions',
+                'mmtBulkActions',
+                [
+                    'ajaxUrl' => admin_url('admin-ajax.php'),
+                    'nonce' => wp_create_nonce('mmt_bulk_action_nonce'),
+                ]
+            );
+        }
         
         // Only load full JavaScript and related assets on plugin settings page
         if (!$should_load_full) {
