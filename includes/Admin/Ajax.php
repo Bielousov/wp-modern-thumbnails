@@ -49,22 +49,142 @@ class Ajax {
         }
         
         $size_name = isset($_POST['size']) ? sanitize_text_field($_POST['size']) : null;
+        $attachment_id = isset($_POST['attachment_id']) ? intval($_POST['attachment_id']) : 0;
         
-        if (!$size_name) {
-            wp_send_json_error('No size specified');
+        // If attachment_id is provided, regenerate only that specific attachment
+        if ($attachment_id) {
+            $regenerated = self::regenerateAttachmentSize($attachment_id, $size_name);
+            
+            wp_send_json_success([
+                'message' => sprintf(
+                    'Generated %d format(s) for media #%d',
+                    $regenerated,
+                    $attachment_id
+                ),
+                'attachment_id' => $attachment_id,
+                'count' => $regenerated
+            ]);
+        } else {
+            // Original behavior - regenerate all attachments for a size (deprecated)
+            if (!$size_name) {
+                wp_send_json_error('No size specified');
+            }
+            
+            $regenerated = RegenerationManager::regenerateSize($size_name);
+            
+            wp_send_json_success([
+                'message' => sprintf(
+                    'Successfully regenerated %d thumbnails for size "%s"',
+                    $regenerated,
+                    $size_name
+                ),
+                'count' => $regenerated,
+                'size' => $size_name
+            ]);
+        }
+    }
+    
+    /**
+     * Regenerate a specific size for a single attachment
+     * 
+     * @param int $attachment_id
+     * @param string|null $size_name
+     * @return int Number of formats generated
+     */
+    private static function regenerateAttachmentSize($attachment_id, $size_name = null) {
+        $regenerated = 0;
+        
+        try {
+            $attachment = get_post($attachment_id);
+            
+            if (!$attachment || !in_array($attachment->post_mime_type, ['image/jpeg', 'image/png', 'image/gif', 'image/webp'])) {
+                return 0;
+            }
+            
+            $metadata = wp_get_attachment_metadata($attachment_id);
+            if (empty($metadata) || empty($metadata['sizes'])) {
+                return 0;
+            }
+            
+            $file = get_attached_file($attachment_id);
+            if (!$file || !file_exists($file)) {
+                return 0;
+            }
+            
+            $image_sizes = \ModernMediaThumbnails\ImageSizeManager::getAllImageSizes();
+            
+            if ($size_name && isset($metadata['sizes'][$size_name]) && isset($image_sizes[$size_name])) {
+                // Regenerate specific size only
+                $size_data = $metadata['sizes'][$size_name];
+                $size_file = dirname($file) . '/' . $size_data['file'];
+                $width = isset($image_sizes[$size_name]['width']) ? $image_sizes[$size_name]['width'] : 0;
+                $height = isset($image_sizes[$size_name]['height']) ? $image_sizes[$size_name]['height'] : 0;
+                $crop = isset($image_sizes[$size_name]['crop']) ? $image_sizes[$size_name]['crop'] : false;
+                
+                if ($width && $height) {
+                    // Generate WebP
+                    $webp_file = preg_replace('/\.[^\.]+$/', '.webp', $size_file);
+                    if (\ModernMediaThumbnails\ThumbnailGenerator::generateWebP($file, $webp_file, $width, $height, $crop)) {
+                        $regenerated++;
+                    }
+                    
+                    // Generate AVIF if enabled
+                    if (FormatManager::shouldGenerateAVIF()) {
+                        $avif_file = preg_replace('/\.[^\.]+$/', '.avif', $size_file);
+                        if (\ModernMediaThumbnails\ThumbnailGenerator::generateAVIF($file, $avif_file, $width, $height, $crop)) {
+                            $regenerated++;
+                        }
+                    }
+                    
+                    // Delete original if not keeping it
+                    if (!FormatManager::shouldKeepOriginal()) {
+                        if (file_exists($size_file)) {
+                            @unlink($size_file);
+                        }
+                    }
+                }
+            } else if (!$size_name) {
+                // Regenerate all sizes for this attachment
+                foreach ($metadata['sizes'] as $sz_name => $size_data) {
+                    if (!isset($image_sizes[$sz_name])) {
+                        continue;
+                    }
+                    
+                    $size_file = dirname($file) . '/' . $size_data['file'];
+                    $width = isset($image_sizes[$sz_name]['width']) ? $image_sizes[$sz_name]['width'] : 0;
+                    $height = isset($image_sizes[$sz_name]['height']) ? $image_sizes[$sz_name]['height'] : 0;
+                    $crop = isset($image_sizes[$sz_name]['crop']) ? $image_sizes[$sz_name]['crop'] : false;
+                    
+                    if ($width && $height) {
+                        // Generate WebP
+                        $webp_file = preg_replace('/\.[^\.]+$/', '.webp', $size_file);
+                        if (\ModernMediaThumbnails\ThumbnailGenerator::generateWebP($file, $webp_file, $width, $height, $crop)) {
+                            $regenerated++;
+                        }
+                        
+                        // Generate AVIF if enabled
+                        if (FormatManager::shouldGenerateAVIF()) {
+                            $avif_file = preg_replace('/\.[^\.]+$/', '.avif', $size_file);
+                            if (\ModernMediaThumbnails\ThumbnailGenerator::generateAVIF($file, $avif_file, $width, $height, $crop)) {
+                                $regenerated++;
+                            }
+                        }
+                        
+                        // Delete original if not keeping it
+                        if (!FormatManager::shouldKeepOriginal()) {
+                            if (file_exists($size_file)) {
+                                @unlink($size_file);
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            // Log error silently
+            error_log('Error regenerating attachment ' . $attachment_id . ': ' . $e->getMessage());
         }
         
-        $regenerated = RegenerationManager::regenerateSize($size_name);
-        
-        wp_send_json_success([
-            'message' => sprintf(
-                'Successfully regenerated %d thumbnails for size "%s"',
-                $regenerated,
-                $size_name
-            ),
-            'count' => $regenerated,
-            'size' => $size_name
-        ]);
+        return $regenerated;
     }
     
     /**
@@ -94,11 +214,33 @@ class Ajax {
     }
     
     /**
-     * Get media statistics for AJAX
+     * Get list of all media files in the library
      * 
      * @return void
      */
-    public static function getMediaStats() {
+    public static function getMediaFilesList() {
+        check_ajax_referer('mmt_regenerate_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Insufficient permissions');
+        }
+        
+        // Get all image attachments
+        $attachments = get_posts([
+            'post_type' => 'attachment',
+            'post_mime_type' => 'image',
+            'numberposts' => -1,
+            'post_status' => 'inherit',
+            'fields' => 'ids',
+        ]);
+        
+        wp_send_json_success([
+            'media_ids' => $attachments,
+            'total' => count($attachments),
+        ]);
+    }
+    
+    /**
         check_ajax_referer('mmt_regenerate_nonce', 'nonce');
         
         if (!current_user_can('manage_options')) {
@@ -123,6 +265,267 @@ class Ajax {
     }
     
     /**
+     * Initialize the regeneration queue - returns all attachment IDs to process
+     * 
+     * @return void
+     */
+    public static function regenerateQueueStart() {
+        check_ajax_referer('mmt_regenerate_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Insufficient permissions');
+        }
+        
+        // Get all image attachments
+        $attachments = get_posts([
+            'post_type' => 'attachment',
+            'post_mime_type' => 'image',
+            'numberposts' => -1,
+            'post_status' => 'inherit',
+            'fields' => 'ids',
+        ]);
+        
+        wp_send_json_success([
+            'attachment_ids' => $attachments,
+            'total_count' => count($attachments),
+            'message' => 'Queue initialized with ' . count($attachments) . ' media items',
+        ]);
+    }
+    
+    /**
+     * Process a single attachment in the regeneration queue
+     * 
+     * @return void
+     */
+    public static function regenerateQueueProcess() {
+        check_ajax_referer('mmt_regenerate_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Insufficient permissions');
+        }
+        
+        $attachment_id = isset($_POST['attachment_id']) ? intval($_POST['attachment_id']) : 0;
+        
+        if (!$attachment_id) {
+            wp_send_json_error('No attachment ID specified');
+        }
+        
+        $regenerated = 0;
+        
+        try {
+            // Regenerate thumbnails for this single attachment
+            $attachment = get_post($attachment_id);
+            
+            if (!$attachment || !in_array($attachment->post_mime_type, ['image/jpeg', 'image/png', 'image/gif', 'image/webp'])) {
+                wp_send_json_success([
+                    'attachment_id' => $attachment_id,
+                    'regenerated' => 0,
+                    'message' => 'Skipped (not an image)',
+                ]);
+            }
+            
+            $metadata = wp_get_attachment_metadata($attachment_id);
+            if (empty($metadata) || empty($metadata['sizes'])) {
+                wp_send_json_success([
+                    'attachment_id' => $attachment_id,
+                    'regenerated' => 0,
+                    'message' => 'Skipped (no thumbnails)',
+                ]);
+            }
+            
+            $file = get_attached_file($attachment_id);
+            if (!$file || !file_exists($file)) {
+                wp_send_json_success([
+                    'attachment_id' => $attachment_id,
+                    'regenerated' => 0,
+                    'message' => 'Skipped (file not found)',
+                ]);
+            }
+            
+            // Process all sizes for this attachment
+            $image_sizes = \ModernMediaThumbnails\ImageSizeManager::getAllImageSizes();
+            
+            foreach ($metadata['sizes'] as $size_name => $size_data) {
+                if (!isset($image_sizes[$size_name])) {
+                    continue;
+                }
+                
+                $size_file = dirname($file) . '/' . $size_data['file'];
+                $width = isset($image_sizes[$size_name]['width']) ? $image_sizes[$size_name]['width'] : 0;
+                $height = isset($image_sizes[$size_name]['height']) ? $image_sizes[$size_name]['height'] : 0;
+                $crop = isset($image_sizes[$size_name]['crop']) ? $image_sizes[$size_name]['crop'] : false;
+                
+                if ($width && $height) {
+                    // Generate WebP
+                    $webp_file = preg_replace('/\.[^\.]+$/', '.webp', $size_file);
+                    if (\ModernMediaThumbnails\ThumbnailGenerator::generateWebP($file, $webp_file, $width, $height, $crop)) {
+                        $regenerated++;
+                    }
+                    
+                    // Generate AVIF if enabled
+                    if (FormatManager::shouldGenerateAVIF()) {
+                        $avif_file = preg_replace('/\.[^\.]+$/', '.avif', $size_file);
+                        if (\ModernMediaThumbnails\ThumbnailGenerator::generateAVIF($file, $avif_file, $width, $height, $crop)) {
+                            $regenerated++;
+                        }
+                    }
+                    
+                    // Delete original if not keeping it
+                    if (!FormatManager::shouldKeepOriginal()) {
+                        if (file_exists($size_file)) {
+                            @unlink($size_file);
+                        }
+                    }
+                }
+            }
+            
+            wp_send_json_success([
+                'attachment_id' => $attachment_id,
+                'regenerated' => $regenerated,
+                'message' => 'Processed media item (generated ' . $regenerated . ' formats)',
+            ]);
+        } catch (\Exception $e) {
+            wp_send_json_error('Error processing attachment ' . $attachment_id . ': ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Initialize the regeneration queue for a specific size - returns all attachment IDs to process
+     * 
+     * @return void
+     */
+    public static function regenerateQueueSizeStart() {
+        check_ajax_referer('mmt_regenerate_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Insufficient permissions');
+        }
+        
+        $size_name = isset($_POST['size']) ? sanitize_text_field($_POST['size']) : null;
+        
+        if (!$size_name) {
+            wp_send_json_error('No size specified');
+        }
+        
+        // Get all image attachments
+        $attachments = get_posts([
+            'post_type' => 'attachment',
+            'post_mime_type' => 'image',
+            'numberposts' => -1,
+            'post_status' => 'inherit',
+            'fields' => 'ids',
+        ]);
+        
+        wp_send_json_success([
+            'attachment_ids' => $attachments,
+            'total_count' => count($attachments),
+            'size' => $size_name,
+            'message' => 'Queue initialized with ' . count($attachments) . ' media items for size "' . $size_name . '"',
+        ]);
+    }
+    
+    /**
+     * Process a single attachment for a specific size in the regeneration queue
+     * 
+     * @return void
+     */
+    public static function regenerateQueueProcessSize() {
+        check_ajax_referer('mmt_regenerate_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Insufficient permissions');
+        }
+        
+        $attachment_id = isset($_POST['attachment_id']) ? intval($_POST['attachment_id']) : 0;
+        $size_name = isset($_POST['size']) ? sanitize_text_field($_POST['size']) : null;
+        
+        if (!$attachment_id || !$size_name) {
+            wp_send_json_error('No attachment ID or size specified');
+        }
+        
+        $regenerated = 0;
+        
+        try {
+            // Regenerate thumbnails for this single attachment and specific size
+            $attachment = get_post($attachment_id);
+            
+            if (!$attachment || !in_array($attachment->post_mime_type, ['image/jpeg', 'image/png', 'image/gif', 'image/webp'])) {
+                wp_send_json_success([
+                    'attachment_id' => $attachment_id,
+                    'regenerated' => 0,
+                    'message' => 'Skipped (not an image)',
+                ]);
+            }
+            
+            $metadata = wp_get_attachment_metadata($attachment_id);
+            if (empty($metadata) || empty($metadata['sizes'])) {
+                wp_send_json_success([
+                    'attachment_id' => $attachment_id,
+                    'regenerated' => 0,
+                    'message' => 'Skipped (no thumbnails)',
+                ]);
+            }
+            
+            $file = get_attached_file($attachment_id);
+            if (!$file || !file_exists($file)) {
+                wp_send_json_success([
+                    'attachment_id' => $attachment_id,
+                    'regenerated' => 0,
+                    'message' => 'Skipped (file not found)',
+                ]);
+            }
+            
+            // Process only the specified size for this attachment
+            $image_sizes = \ModernMediaThumbnails\ImageSizeManager::getAllImageSizes();
+            
+            if (!isset($metadata['sizes'][$size_name]) || !isset($image_sizes[$size_name])) {
+                wp_send_json_success([
+                    'attachment_id' => $attachment_id,
+                    'regenerated' => 0,
+                    'message' => 'Skipped (size not applicable)',
+                ]);
+            }
+            
+            $size_data = $metadata['sizes'][$size_name];
+            $size_file = dirname($file) . '/' . $size_data['file'];
+            $width = isset($image_sizes[$size_name]['width']) ? $image_sizes[$size_name]['width'] : 0;
+            $height = isset($image_sizes[$size_name]['height']) ? $image_sizes[$size_name]['height'] : 0;
+            $crop = isset($image_sizes[$size_name]['crop']) ? $image_sizes[$size_name]['crop'] : false;
+            
+            if ($width && $height) {
+                // Generate WebP
+                $webp_file = preg_replace('/\.[^\.]+$/', '.webp', $size_file);
+                if (\ModernMediaThumbnails\ThumbnailGenerator::generateWebP($file, $webp_file, $width, $height, $crop)) {
+                    $regenerated++;
+                }
+                
+                // Generate AVIF if enabled
+                if (FormatManager::shouldGenerateAVIF()) {
+                    $avif_file = preg_replace('/\.[^\.]+$/', '.avif', $size_file);
+                    if (\ModernMediaThumbnails\ThumbnailGenerator::generateAVIF($file, $avif_file, $width, $height, $crop)) {
+                        $regenerated++;
+                    }
+                }
+                
+                // Delete original if not keeping it
+                if (!FormatManager::shouldKeepOriginal()) {
+                    if (file_exists($size_file)) {
+                        @unlink($size_file);
+                    }
+                }
+            }
+            
+            wp_send_json_success([
+                'attachment_id' => $attachment_id,
+                'regenerated' => $regenerated,
+                'message' => 'Processed media item for size "' . $size_name . '" (generated ' . $regenerated . ' formats)',
+            ]);
+        } catch (\Exception $e) {
+            wp_send_json_error('Error processing attachment ' . $attachment_id . ': ' . $e->getMessage());
+        }
+    }
+    
+    /**
      * Register AJAX handlers
      * 
      * @return void
@@ -132,5 +535,10 @@ class Ajax {
         add_action('wp_ajax_mmt_regenerate_size', [self::class, 'regenerateSize']);
         add_action('wp_ajax_mmt_save_settings', [self::class, 'saveSettings']);
         add_action('wp_ajax_mmt_get_media_stats', [self::class, 'getMediaStats']);
+        add_action('wp_ajax_mmt_get_media_files_list', [self::class, 'getMediaFilesList']);
+        add_action('wp_ajax_mmt_regenerate_queue_start', [self::class, 'regenerateQueueStart']);
+        add_action('wp_ajax_mmt_regenerate_queue_process', [self::class, 'regenerateQueueProcess']);
+        add_action('wp_ajax_mmt_regenerate_queue_size_start', [self::class, 'regenerateQueueSizeStart']);
+        add_action('wp_ajax_mmt_regenerate_queue_process_size', [self::class, 'regenerateQueueProcessSize']);
     }
 }

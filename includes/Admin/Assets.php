@@ -36,10 +36,19 @@ class Assets {
         $plugin_url = defined('MMT_PLUGIN_URL') ? MMT_PLUGIN_URL : plugin_dir_url(dirname(dirname(dirname(__FILE__))));
         $plugin_version = defined('MMT_PLUGIN_VERSION') ? MMT_PLUGIN_VERSION : '1.0.0';
         
+        // Enqueue job handler script first
+        wp_enqueue_script(
+            'mmt-job-handler',
+            $plugin_url . 'js/job-handler.js',
+            ['jquery'],
+            $plugin_version,
+            true
+        );
+        
         wp_enqueue_script(
             'mmt-admin',
             $plugin_url . 'js/admin.js',
-            ['jquery'],
+            ['jquery', 'mmt-job-handler'],
             $plugin_version,
             true
         );

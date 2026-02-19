@@ -129,89 +129,28 @@ jQuery(function ($) {
         });
     });
     
-    // Regenerate all thumbnails
+    // Regenerate all thumbnails - create a job
     $('#mmt-regenerate-all').on('click', function (e) {
         e.preventDefault();
         
-        var $button = $(this);
-        var originalText = $button.text();
-        var $message = $('#mmt-regenerate-message');
-        
-        $button.prop('disabled', true);
-        $button.text(mmtData.i18n.regenerating);
-        $message.hide();
-        
-        $.ajax({
-            url: mmtData.ajaxUrl,
-            type: 'POST',
-            data: {
-                action: 'mmt_regenerate_all',
-                nonce: mmtData.nonce
-            },
-            success: function (response) {
-                if (response.success) {
-                    $message.html(
-                        '<div class="notice notice-success is-dismissible"><p>' +
-                        response.data.message +
-                        '</p></div>'
-                    ).show();
-                } else {
-                    $message.html(
-                        '<div class="notice notice-error is-dismissible"><p>' +
-                        (response.data || mmtData.i18n.error) +
-                        '</p></div>'
-                    ).show();
-                }
-            },
-            error: function () {
-                $message.html(
-                    '<div class="notice notice-error is-dismissible"><p>' +
-                    mmtData.i18n.error +
-                    '</p></div>'
-                ).show();
-            },
-            complete: function () {
-                $button.prop('disabled', false);
-                $button.text(originalText);
-            }
+        var job = new ThumbnailRegenerationJob({
+            type: 'all'
         });
+        job.start();
     });
     
-    // Regenerate individual size thumbnails
+    // Regenerate individual size thumbnails - create a job
     $('.mmt-regenerate-size').on('click', function (e) {
         e.preventDefault();
         
         var $button = $(this);
         var sizeName = $button.data('size');
-        var originalText = $button.text();
         
-        $button.prop('disabled', true);
-        $button.text(mmtData.i18n.regenerating);
-        
-        $.ajax({
-            url: mmtData.ajaxUrl,
-            type: 'POST',
-            data: {
-                action: 'mmt_regenerate_size',
-                nonce: mmtData.nonce,
-                size: sizeName
-            },
-            success: function (response) {
-                if (response.success) {
-                    // Show a brief success message as a tooltip/alert
-                    alert(response.data.message);
-                } else {
-                    alert(response.data || mmtData.i18n.error);
-                }
-            },
-            error: function () {
-                alert(mmtData.i18n.error);
-            },
-            complete: function () {
-                $button.prop('disabled', false);
-                $button.text(originalText);
-            }
+        var job = new ThumbnailRegenerationJob({
+            type: 'size',
+            size: sizeName
         });
+        job.start();
     });
 });
 

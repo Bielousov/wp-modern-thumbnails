@@ -153,8 +153,6 @@ class SettingsPage {
                         </button>
                     </div>
                     
-                    <div id="mmt-regenerate-message" style="display: none; margin-bottom: 15px;"></div>
-                    
                     <table class="wp-list-table widefat striped">
                         <thead>
                             <tr>
