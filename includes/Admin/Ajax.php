@@ -878,17 +878,63 @@ class Ajax {
         }
         
         try {
+            // Get metadata to count sizes
+            $metadata = wp_get_attachment_metadata($post_id);
+            $size_count = !empty($metadata['sizes']) ? count($metadata['sizes']) : 0;
+            
             // Regenerate all sizes for this attachment
             $regenerated = self::regenerateAttachmentSize($post_id, null);
             
+            // Build format list based on enabled options
+            $enabled_formats = [];
+            
+            if (FormatManager::shouldGenerateWebP()) {
+                $enabled_formats[] = 'WebP';
+            }
+            
+            if (FormatManager::shouldKeepOriginal()) {
+                $extension = strtoupper(pathinfo(get_attached_file($post_id), PATHINFO_EXTENSION));
+                if ($extension === 'JPG') {
+                    $extension = 'JPEG';
+                }
+                $enabled_formats[] = $extension;
+            }
+            
+            if (FormatManager::shouldGenerateAVIF()) {
+                $enabled_formats[] = 'AVIF';
+            }
+            
+            // Build the format string
+            $formats_text = '';
+            if (count($enabled_formats) === 0) {
+                $formats_text = 'configured formats';
+            } elseif (count($enabled_formats) === 1) {
+                $formats_text = $enabled_formats[0];
+            } elseif (count($enabled_formats) === 2) {
+                $formats_text = implode(' and ', $enabled_formats);
+            } else {
+                $last_format = array_pop($enabled_formats);
+                $formats_text = implode(', ', $enabled_formats) . ' and ' . $last_format;
+            }
+            
+            // Build message
+            if ($size_count > 0) {
+                $message = sprintf(
+                    'Successfully regenerated %d thumbnail %s in %s',
+                    $size_count,
+                    _n('size', 'sizes', $size_count, 'modern-media-thumbnails'),
+                    $formats_text
+                );
+            } else {
+                $message = 'Attachment processed';
+            }
+            
             wp_send_json_success([
-                'message' => sprintf(
-                    'Regenerated %d format(s) for media #%d',
-                    $regenerated,
-                    $post_id
-                ),
+                'message' => $message,
                 'post_id' => $post_id,
-                'count' => $regenerated
+                'count' => $regenerated,
+                'sizes' => $size_count,
+                'formats' => $enabled_formats
             ]);
         } catch (\Exception $e) {
             error_log('Error regenerating attachment ' . $post_id . ': ' . $e->getMessage());

@@ -11,6 +11,7 @@ use ModernMediaThumbnails\WordPress\UploadHooks;
 use ModernMediaThumbnails\Admin\SettingsPage;
 use ModernMediaThumbnails\Admin\MediaSettings;
 use ModernMediaThumbnails\Admin\BulkActions;
+use ModernMediaThumbnails\Admin\MediaDetails;
 use ModernMediaThumbnails\Admin\Ajax;
 use ModernMediaThumbnails\Admin\Assets;
 use ModernMediaThumbnails\Admin\AdminNotices;
@@ -33,6 +34,7 @@ class Plugin {
         add_action('admin_menu', [SettingsPage::class, 'registerMenu']);
         MediaSettings::register();
         BulkActions::register();
+        MediaDetails::register();
         Ajax::register();
         Assets::register();
         AdminNotices::register();

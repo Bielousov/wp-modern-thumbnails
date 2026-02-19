@@ -1,0 +1,67 @@
+/**
+ * Media Details Page Styles
+ * 
+ * Styles for the regenerate thumbnail button on individual media edit pages.
+ */
+
+.mmt-media-details-action {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    border-top: 1px solid #eee;
+}
+
+.mmt-regenerate-button {
+    min-height: 30px;
+    padding: 0 12px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.mmt-regenerate-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.mmt-regenerate-status {
+    display: none;
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.mmt-regenerate-status.mmt-success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.mmt-regenerate-status.mmt-error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.mmt-regenerate-status.mmt-processing {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
+
+.mmt-formats-list {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #666;
+    flex-grow: 1;
+}
+
+.mmt-formats-items {
+    font-weight: 500;
+    color: #333;
+    display: inline;
+}
