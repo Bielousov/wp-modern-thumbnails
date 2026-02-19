@@ -33,6 +33,9 @@ class Plugin {
         Assets::register();
         AdminNotices::register();
         
+        // Register plugin action links
+        add_filter('plugin_action_links_modern-thumbnails/index.php', [self::class, 'addPluginActionLinks']);
+        
         // Load text domain
         add_action('plugins_loaded', [self::class, 'loadTextDomain']);
     }
@@ -62,5 +65,24 @@ class Plugin {
         
         // Initialize default settings on plugin activation
         FormatManager::maybeInitializeDefaults();
+    }
+    
+    /**
+     * Add plugin action links
+     * 
+     * Adds a Settings link to the plugin list item on the WordPress plugins page.
+     * 
+     * @param array $links Existing plugin action links
+     * @return array Modified action links
+     */
+    public static function addPluginActionLinks($links) {
+        $settings_link = sprintf(
+            '<a href="%s">%s</a>',
+            admin_url('options-general.php?page=mmt-settings'),
+            __('Settings', 'modern-media-thumbnails')
+        );
+        
+        array_unshift($links, $settings_link);
+        return $links;
     }
 }
