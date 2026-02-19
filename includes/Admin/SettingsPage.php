@@ -205,7 +205,7 @@ class SettingsPage {
                                     <tr>
                                         <td style="text-align: center;">
                                             <div class="mmt-resolution-box <?php echo $crop ? 'hard-crop' : 'soft-crop'; ?>" style="width: 120px; height: 120px;">
-                                                <span style="position: absolute; top: 6px; left: 6px; background-color: <?php echo $crop_bg_color; ?>; padding: 3px 6px; border-radius: 3px; font-size: 10px; font-weight: 600;">
+                                                <span class="mmt-crop-badge" style="position: absolute; top: 6px; left: 6px; background-color: <?php echo $crop_bg_color; ?>; padding: 3px 6px; border-radius: 3px; font-size: 10px; font-weight: 600;">
                                                     <?php echo $crop_badge; ?>
                                                 </span>
                                                 <div>
@@ -344,55 +344,62 @@ class SettingsPage {
                 // Create mmtData if not available from wp_localize_script
                 if (typeof mmtData === 'undefined') {
                     console.log('Creating fallback mmtData object');
+                    var settingsNonceField = document.querySelector('input[name="mmt_settings_nonce"]');
                     window.mmtData = {
-                        nonce: document.querySelector('input[name="mmt_settings_nonce"]') ? document.querySelector('input[name="mmt_settings_nonce"]').value : '',
+                        nonce: document.querySelector('input[name="mmt_regenerate_nonce"]') ? document.querySelector('input[name="mmt_regenerate_nonce"]').value : '',
+                        settingsNonce: settingsNonceField ? settingsNonceField.value : '',
                         ajaxUrl: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>'
                     };
-                    
-                    // Create nonce if still empty
-                    if (!window.mmtData.nonce) {
-                        // Try to get from inline nonce field
-                        var nonceField = document.querySelector('[name="mmt_regenerate_nonce"]');
-                        if (nonceField) {
-                            window.mmtData.nonce = nonceField.value;
-                        }
+                }
+                
+                // Ensure settingsNonce is available
+                if (!window.mmtData.settingsNonce) {
+                    var settingsNonceField = document.querySelector('input[name="mmt_settings_nonce"]');
+                    if (settingsNonceField) {
+                        window.mmtData.settingsNonce = settingsNonceField.value;
                     }
                 }
                 
                 console.log('Using mmtData:', window.mmtData);
                 
-                // Load media statistics
-                function loadMediaStats() {
-                    console.log('Loading media stats...');
-                    
-                    // Show loading state
-                    $('#mmt-media-stats .mmt-stat-value').html('<span style="color: #999; font-style: italic;">Calculating…</span>');
-                    
+                // Load individual media metric
+                function loadMediaMetric(metricKey, action) {
                     $.ajax({
                         url: window.mmtData.ajaxUrl,
                         type: 'POST',
                         dataType: 'json',
                         timeout: 30000,
                         data: {
-                            action: 'mmt_get_media_stats',
-                            nonce: window.mmtData.nonce
+                            action: action,
+                            nonce: window.mmtData.settingsNonce
                         },
                         success: function(response) {
-                            console.log('Stats response:', response);
-                            if (response.success && response.data) {
-                                $('#mmt-media-stats tr[data-stat="media-count"] .mmt-stat-value').text(response.data.media_count);
-                                $('#mmt-media-stats tr[data-stat="original-size"] .mmt-stat-value').text(response.data.original_size);
-                                $('#mmt-media-stats tr[data-stat="thumbnail-size"] .mmt-stat-value').text(response.data.thumbnail_size);
-                                $('#mmt-media-stats tr[data-stat="total-size"] .mmt-stat-value').text(response.data.total_size);
+                            console.log('Metric response for ' + metricKey + ':', response);
+                            if (response.success && response.data && response.data.value) {
+                                $('#mmt-media-stats tr[data-stat="' + metricKey + '"] .mmt-stat-value').text(response.data.value);
                             } else {
-                                $('#mmt-media-stats .mmt-stat-value').html('<span style="color: red;">Failed to calculate</span>');
+                                $('#mmt-media-stats tr[data-stat="' + metricKey + '"] .mmt-stat-value').html('<span style="color: red;">Failed</span>');
                             }
                         },
                         error: function(xhr, status, error) {
-                            console.error('AJAX error:', status, error, xhr.responseText);
-                            $('#mmt-media-stats .mmt-stat-value').html('<span style="color: red;">Failed to calculate</span>');
+                            console.error('AJAX error for metric ' + metricKey + ':', status, error, xhr.responseText);
+                            $('#mmt-media-stats tr[data-stat="' + metricKey + '"] .mmt-stat-value').html('<span style="color: red;">Error</span>');
                         }
                     });
+                }
+                
+                // Load media statistics - each metric as separate request
+                function loadMediaStats() {
+                    console.log('Loading media stats...');
+                    
+                    // Show loading state for all metrics
+                    $('#mmt-media-stats .mmt-stat-value').html('<span style="color: #999; font-style: italic;">Calculating…</span>');
+                    
+                    // Load each metric separately
+                    loadMediaMetric('media-count', 'mmt_get_media_count');
+                    loadMediaMetric('original-size', 'mmt_get_original_size');
+                    loadMediaMetric('thumbnail-size', 'mmt_get_thumbnail_size');
+                    loadMediaMetric('total-size', 'mmt_get_total_size');
                 }
                 
                 // Run when jQuery is ready

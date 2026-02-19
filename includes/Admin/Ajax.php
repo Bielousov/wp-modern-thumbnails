@@ -241,7 +241,12 @@ class Ajax {
     }
     
     /**
-        check_ajax_referer('mmt_regenerate_nonce', 'nonce');
+     * Get media file count
+     * 
+     * @return void
+     */
+    public static function getMediaCount() {
+        check_ajax_referer('mmt_settings_nonce', 'nonce');
         
         if (!current_user_can('manage_options')) {
             wp_send_json_error('Insufficient permissions');
@@ -249,18 +254,80 @@ class Ajax {
         
         try {
             $media_count = SettingsPage::getMediaFileCount();
+            wp_send_json_success([
+                'value' => $media_count,
+            ]);
+        } catch (\Exception $e) {
+            wp_send_json_error('Error calculating media count: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Get original file size
+     * 
+     * @return void
+     */
+    public static function getOriginalSize() {
+        check_ajax_referer('mmt_settings_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Insufficient permissions');
+        }
+        
+        try {
+            $original_size = SettingsPage::getOriginalFileSize();
+            wp_send_json_success([
+                'value' => SettingsPage::formatBytes($original_size),
+            ]);
+        } catch (\Exception $e) {
+            wp_send_json_error('Error calculating original size: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Get thumbnail file size
+     * 
+     * @return void
+     */
+    public static function getThumbnailSize() {
+        check_ajax_referer('mmt_settings_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Insufficient permissions');
+        }
+        
+        try {
+            $thumbnail_size = SettingsPage::getThumbnailFileSize();
+            wp_send_json_success([
+                'value' => SettingsPage::formatBytes($thumbnail_size),
+            ]);
+        } catch (\Exception $e) {
+            wp_send_json_error('Error calculating thumbnail size: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Get total media file size
+     * 
+     * @return void
+     */
+    public static function getTotalSize() {
+        check_ajax_referer('mmt_settings_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Insufficient permissions');
+        }
+        
+        try {
             $original_size = SettingsPage::getOriginalFileSize();
             $thumbnail_size = SettingsPage::getThumbnailFileSize();
             $total_size = $original_size + $thumbnail_size;
             
             wp_send_json_success([
-                'media_count' => $media_count,
-                'original_size' => SettingsPage::formatBytes($original_size),
-                'thumbnail_size' => SettingsPage::formatBytes($thumbnail_size),
-                'total_size' => SettingsPage::formatBytes($total_size),
+                'value' => SettingsPage::formatBytes($total_size),
             ]);
         } catch (\Exception $e) {
-            wp_send_json_error('Error calculating statistics: ' . $e->getMessage());
+            wp_send_json_error('Error calculating total size: ' . $e->getMessage());
         }
     }
     
@@ -534,7 +601,10 @@ class Ajax {
         add_action('wp_ajax_mmt_regenerate_all', [self::class, 'regenerateAll']);
         add_action('wp_ajax_mmt_regenerate_size', [self::class, 'regenerateSize']);
         add_action('wp_ajax_mmt_save_settings', [self::class, 'saveSettings']);
-        add_action('wp_ajax_mmt_get_media_stats', [self::class, 'getMediaStats']);
+        add_action('wp_ajax_mmt_get_media_count', [self::class, 'getMediaCount']);
+        add_action('wp_ajax_mmt_get_original_size', [self::class, 'getOriginalSize']);
+        add_action('wp_ajax_mmt_get_thumbnail_size', [self::class, 'getThumbnailSize']);
+        add_action('wp_ajax_mmt_get_total_size', [self::class, 'getTotalSize']);
         add_action('wp_ajax_mmt_get_media_files_list', [self::class, 'getMediaFilesList']);
         add_action('wp_ajax_mmt_regenerate_queue_start', [self::class, 'regenerateQueueStart']);
         add_action('wp_ajax_mmt_regenerate_queue_process', [self::class, 'regenerateQueueProcess']);
