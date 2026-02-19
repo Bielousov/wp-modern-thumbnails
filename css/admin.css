@@ -118,15 +118,40 @@
 }
 
 /**
+ * Theme Image Sizes Table
+ */
+.mmt-image-sizes-table td {
+    vertical-align: middle;
+}
+
+.mmt-formats {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+/**
  * Regeneration Buttons
  */
 .mmt-regenerate-size {
-    min-width: 100px;
+    display: inline-block;
+    margin: .5rem 0;
+    /* border-bottom: 1px solid #0073aa; */
+    color: #0073aa;
+    font-weight: 500;
+    line-height: 1.1;
+    /* text-decoration: none; */
 }
+
 
 .mmt-regenerate-size:disabled {
     opacity: 0.65;
     cursor: not-allowed;
+}
+
+.mmt-regenerate-size:hover {
+    text-decoration: underline;
 }
 
 #mmt-regenerate-all {
@@ -151,40 +176,34 @@
  * Visual representation of image size with crop mode indication
  */
 .mmt-resolution-box {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: #f5f5f5;
-    border-radius: 8px;
+    width: 100px;
+    height: 100px;
+    margin: 1rem;
     color: #808080;
-    font-weight: 600;
-    font-size: 14px;
+    font-weight: 500;
+    font-size: 12px;
     text-align: center;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    transition: transform 0.2s ease;
-    position: relative;
-    overflow: hidden;
 }
 
-.mmt-resolution-box:hover {
-    transform: scale(1.05);
-}
-
-/* Soft crop mode - intersecting dashed rectangles */
-.mmt-resolution-box.soft-crop::before {
+/* No crop mode (soft crop) - intersecting dashed rectangles */
+.mmt-resolution-box.no-crop::before {
     content: '';
     position: absolute;
-    width: 50%;
-    height: 85%;
+    width: 66%;
+    height: 100%;
     border: 2px dashed #b0b0b0;
     border-radius: 3px;
 }
 
-.mmt-resolution-box.soft-crop::after {
+.mmt-resolution-box.no-crop::after {
     content: '';
     position: absolute;
-    width: 85%;
-    height: 50%;
+    width: 100%;
+    height: 66%;
     border: 2px dashed #b0b0b0;
     border-radius: 3px;
 }
@@ -193,29 +212,41 @@
 .mmt-resolution-box.hard-crop::before {
     content: '';
     position: absolute;
-    width: 70%;
-    height: 70%;
-    background-color: #d8d8d8;
+    width: 80%;
+    height: 80%;
+    border: 2px solid #b0b0b0;
     border-radius: 3px;
 }
 
-.mmt-resolution-box > div {
-    position: relative;
-    z-index: 2;
+.mmt-resolution-box-label {
+    width: 60%;
+    font-size: 10px;
+    line-height: 1.2;
 }
 
-.mmt-resolution-box small {
-    display: block;
-    font-size: 12px;
-    opacity: 0.7;
-    display: inline-block;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 12px;
+/**
+ * Crop Badge
+ */
+.mmt-crop-badge {
+    position: absolute;
+    z-index: 2;
+    top: 6px;
+    left: 2px;
+    padding: 0 8px;
+    border-radius: 3px;
+    color: #fff;
+    font-size: 9px;
     font-weight: 600;
-    margin-right: 4px;
-    margin-bottom: 4px;
 }
+
+.mmt-crop-badge.hard-crop {
+    background-color: #777;
+}
+
+.mmt-crop-badge.no-crop {
+    background-color: #aaa;
+}
+
 
 /**
  * Format Controls Container
@@ -352,11 +383,11 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: 8px;
     cursor: pointer;
     flex: 1;
     width: 100%;
-    justify-content: center;
 }
 
 /**

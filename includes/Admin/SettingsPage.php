@@ -153,34 +153,31 @@ class SettingsPage {
                         </button>
                     </div>
                     
-                    <table class="wp-list-table widefat striped">
+                    <table class="wp-list-table widefat striped mmt-image-sizes-table">
                         <thead>
                             <tr>
                                 <th style="text-align: center; width: 130px;"><?php esc_html_e('Resolution & Crop', 'modern-media-thumbnails'); ?></th>
                                 <th><?php esc_html_e('Size Name', 'modern-media-thumbnails'); ?></th>
                                 <th><?php esc_html_e('Formats', 'modern-media-thumbnails'); ?></th>
-                                <th style="text-align: center;"><?php esc_html_e('Action', 'modern-media-thumbnails'); ?></th>
                             </tr>
                         </thead>
                         <tbody>
                             <!-- Original Image Row -->
                             <tr style="background-color: #f9f9f9; font-weight: bold;">
                                 <td style="text-align: center;">
-                                    <div class="mmt-resolution-box" style="width: 120px; height: 120px;">
-                                        <div>
-                                            <?php esc_html_e('Full', 'modern-media-thumbnails'); ?><br><span style="font-size: 14px;">×</span><br><?php esc_html_e('Full', 'modern-media-thumbnails'); ?>
-                                            <small>px</small>
-                                        </div>
+                                    <div class="mmt-resolution-box">
+                                        <span class="mmt-resolution-box-label">
+                                            <?php esc_html_e('Full', 'modern-media-thumbnails'); ?><small>×</small><?php esc_html_e('Full', 'modern-media-thumbnails'); ?>
+                                        </span>
                                     </div>
                                 </td>
                                 <td>
                                     <strong><?php esc_html_e('Original Image', 'modern-media-thumbnails'); ?></strong>
                                 </td>
                                 <td>
-                                    <span class="mmt-format-badge mmt-format-original"><?php esc_html_e('Original (JPEG/PNG/GIF)', 'modern-media-thumbnails'); ?></span>
-                                </td>
-                                <td style="text-align: center;">
-                                    <span style="color: #999;"><?php esc_html_e('Auto-kept', 'modern-media-thumbnails'); ?></span>
+                                    <div class="mmt-formats">
+                                        <span class="mmt-format-badge mmt-format-original"><?php esc_html_e('Original (JPEG/PNG/GIF)', 'modern-media-thumbnails'); ?></span>
+                                    </div>
                                 </td>
                             </tr>
                             
@@ -199,19 +196,16 @@ class SettingsPage {
                                     $width = isset($size_data['width']) ? $size_data['width'] : 'auto';
                                     $height = isset($size_data['height']) ? $size_data['height'] : 'auto';
                                     $crop = isset($size_data['crop']) ? $size_data['crop'] : false;
-                                    $crop_badge = $crop ? esc_html__('Crop', 'modern-media-thumbnails') : esc_html__('No Crop', 'modern-media-thumbnails');
-                                    $crop_bg_color = $crop ? '#fee' : '#efe';
                                     ?>
                                     <tr>
                                         <td style="text-align: center;">
-                                            <div class="mmt-resolution-box <?php echo $crop ? 'hard-crop' : 'soft-crop'; ?>" style="width: 120px; height: 120px;">
-                                                <span class="mmt-crop-badge" style="position: absolute; top: 6px; left: 6px; background-color: <?php echo $crop_bg_color; ?>; padding: 3px 6px; border-radius: 3px; font-size: 10px; font-weight: 600;">
-                                                    <?php echo $crop_badge; ?>
+                                            <div class="mmt-resolution-box <?php echo $crop ? 'hard-crop' : 'no-crop'; ?>">
+                                                <span class="mmt-crop-badge <?php echo $crop ? 'hard-crop' : 'no-crop'; ?>">
+                                                    <?php echo $crop ? esc_html__('Crop', 'modern-media-thumbnails') : esc_html__('Fit', 'modern-media-thumbnails'); ?>
                                                 </span>
-                                                <div>
-                                                    <?php echo esc_html($width); ?><br><span style="font-size: 14px;">×</span><br><?php echo esc_html($height); ?>
-                                                    <small>px</small>
-                                                </div>
+                                                <span class="mmt-resolution-box-label">
+                                                    <?php echo esc_html($width); ?><small>×</small><?php echo esc_html($height); ?>
+                                                </span>
                                             </div>
                                         </td>
                                         <td>
@@ -224,18 +218,16 @@ class SettingsPage {
                                             <?php endif; ?>
                                         </td>
                                         <td>
-                                            <span class="mmt-format-badge mmt-format-webp"><?php esc_html_e('WebP + Original', 'modern-media-thumbnails'); ?></span>
-                                        </td>
-                                        <td style="text-align: center;">
-                                            <button class="button mmt-regenerate-size" data-size="<?php echo esc_attr($size_name); ?>">
-                                                <?php esc_html_e('Regenerate', 'modern-media-thumbnails'); ?>
-                                            </button>
+                                            <div class="mmt-formats">
+                                                <span class="mmt-format-badge mmt-format-webp"><?php esc_html_e('WebP + Original', 'modern-media-thumbnails'); ?></span>
+                                                <a href="#" class="mmt-regenerate-size" data-size="<?php echo esc_attr($size_name); ?>"><?php esc_html_e('Regenerate', 'modern-media-thumbnails'); ?></a>
+                                            </div>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <tr>
-                                    <td colspan="4">
+                                    <td colspan="3">
                                         <em><?php esc_html_e('No custom image sizes defined in your theme.', 'modern-media-thumbnails'); ?></em>
                                     </td>
                                 </tr>
