@@ -9,6 +9,7 @@ namespace ModernMediaThumbnails\WordPress;
 
 use ModernMediaThumbnails\ImageSizeManager;
 use ModernMediaThumbnails\FormatManager;
+use ModernMediaThumbnails\Settings;
 use ModernMediaThumbnails\ThumbnailGenerator;
 
 class UploadHooks {
@@ -43,10 +44,10 @@ class UploadHooks {
         }
         
         // Get format settings
-        $all_settings = FormatManager::getFormatSettings();
-        $webp_quality = intval($all_settings['webp_quality'] ?? 80);
-        $original_quality = intval($all_settings['original_quality'] ?? 85);
-        $avif_quality = intval($all_settings['avif_quality'] ?? 75);
+        $all_settings = Settings::getWithDefaults();
+        $webp_quality = intval($all_settings['webp_quality']);
+        $original_quality = intval($all_settings['original_quality']);
+        $avif_quality = intval($all_settings['avif_quality']);
         $convert_gif = FormatManager::shouldConvertGif();
         
         // Get source image MIME type

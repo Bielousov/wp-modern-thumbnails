@@ -8,6 +8,7 @@
 namespace ModernMediaThumbnails\Admin;
 
 use ModernMediaThumbnails\FormatManager;
+use ModernMediaThumbnails\Settings;
 use ModernMediaThumbnails\WordPress\RegenerationManager;
 use ModernMediaThumbnails\Admin\SettingsPage;
 
@@ -200,10 +201,10 @@ class Ajax {
         $keep_original = FormatManager::shouldKeepOriginal();
         $generate_avif = FormatManager::shouldGenerateAVIF();
         $convert_gif = FormatManager::shouldConvertGif();
-        $all_settings = FormatManager::getFormatSettings();
-        $webp_quality = intval($all_settings['webp_quality'] ?? 80);
-        $original_quality = intval($all_settings['original_quality'] ?? 85);
-        $avif_quality = intval($all_settings['avif_quality'] ?? 75);
+        $all_settings = Settings::getWithDefaults();
+        $webp_quality = intval($all_settings['webp_quality']);
+        $original_quality = intval($all_settings['original_quality']);
+        $avif_quality = intval($all_settings['avif_quality']);
         
         // Map MIME type to format for original generation
         $format_map = [
@@ -587,10 +588,10 @@ class Ajax {
             $image_sizes = \ModernMediaThumbnails\ImageSizeManager::getAllImageSizes();
             
             // Get quality settings
-            $all_settings = FormatManager::getFormatSettings();
-            $webp_quality = intval($all_settings['webp_quality'] ?? 80);
-            $original_quality = intval($all_settings['original_quality'] ?? 85);
-            $avif_quality = intval($all_settings['avif_quality'] ?? 75);
+            $all_settings = Settings::getWithDefaults();
+            $webp_quality = intval($all_settings['webp_quality']);
+            $original_quality = intval($all_settings['original_quality']);
+            $avif_quality = intval($all_settings['avif_quality']);
             $convert_gif = FormatManager::shouldConvertGif();
             
             // Get source image MIME type
@@ -786,10 +787,10 @@ class Ajax {
             
             if ($width && $height) {
                 // Get quality settings
-                $all_settings = FormatManager::getFormatSettings();
-                $webp_quality = intval($all_settings['webp_quality'] ?? 80);
-                $original_quality = intval($all_settings['original_quality'] ?? 85);
-                $avif_quality = intval($all_settings['avif_quality'] ?? 75);
+                $all_settings = Settings::getWithDefaults();
+                $webp_quality = intval($all_settings['webp_quality']);
+                $original_quality = intval($all_settings['original_quality']);
+                $avif_quality = intval($all_settings['avif_quality']);
                 $convert_gif = FormatManager::shouldConvertGif();
                 
                 // Get source image MIME type

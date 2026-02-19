@@ -9,6 +9,7 @@ namespace ModernMediaThumbnails\Admin;
 
 use ModernMediaThumbnails\ImageSizeManager;
 use ModernMediaThumbnails\FormatManager;
+use ModernMediaThumbnails\Settings;
 use ModernMediaThumbnails\SystemCheck;
 
 class SettingsPage {
@@ -27,7 +28,7 @@ class SettingsPage {
         $imagick_available = SystemCheck::isImagickAvailable();
         $webp_supported = SystemCheck::isWebPSupported();
         $avif_supported = SystemCheck::isAVIFSupported();
-        $settings = FormatManager::getFormatSettings();
+        $settings = Settings::getWithDefaults();
         
         // Get a sample image from media library for preview
         $sample_attachment = get_posts([
@@ -85,16 +86,18 @@ class SettingsPage {
                                     </label>
                                 </div>
                                 <p class="mmt-card-description"><?php esc_html_e('Generate WebP format for all images. This is always enabled and required for optimal performance.', 'modern-media-thumbnails'); ?></p>
-                                <div class="mmt-quality-control">
-                                    <label for="mmt_webp_quality"><?php esc_html_e('Quality', 'modern-media-thumbnails'); ?></label>
-                                    <input type="range" 
-                                           id="mmt_webp_quality" 
-                                           name="settings[webp_quality]" 
-                                           min="0" 
-                                           max="100" 
-                                           value="<?php echo intval($settings['webp_quality'] ?? 80); ?>"
-                                           class="mmt-quality-slider">
-                                    <span class="mmt-quality-value"><?php echo intval($settings['webp_quality'] ?? 80); ?></span>
+                                <div class="mmt-card-footer">
+                                    <div class="mmt-quality-control">
+                                        <label for="mmt_webp_quality"><?php esc_html_e('Quality', 'modern-media-thumbnails'); ?></label>
+                                        <input type="range" 
+                                               id="mmt_webp_quality" 
+                                               name="settings[webp_quality]" 
+                                               min="0" 
+                                               max="100" 
+                                               value="<?php echo intval($settings['webp_quality']); ?>"
+                                               class="mmt-quality-slider">
+                                        <span class="mmt-quality-value"><?php echo intval($settings['webp_quality']); ?></span>
+                                    </div>
                                 </div>
                             </div>
                             
@@ -107,22 +110,26 @@ class SettingsPage {
                                                id="mmt_keep_original" 
                                                name="settings[keep_original]" 
                                                value="1"
-                                               <?php checked($settings['keep_original'] ?? false); ?>>
+                                               <?php checked($settings['keep_original']); ?>>
                                         <span class="toggle"></span>
                                     </label>
                                 </div>
                                 <p class="mmt-card-description"><?php esc_html_e('Generate JPEG or PNG versions matching the original file format to ensure compatibility with legacy browsers.', 'modern-media-thumbnails'); ?></p>
-                                <div class="mmt-quality-control" style="<?php echo !($settings['keep_original'] ?? false) ? 'display: none;' : ''; ?>">
-                                    <label for="mmt_original_quality"><?php esc_html_e('Quality', 'modern-media-thumbnails'); ?></label>
-                                    <input type="range" 
-                                           id="mmt_original_quality" 
-                                           name="settings[original_quality]" 
-                                           min="0" 
-                                           max="100" 
-                                           value="<?php echo intval($settings['original_quality'] ?? 85); ?>"
-                                           class="mmt-quality-slider">
-                                    <span class="mmt-quality-value"><?php echo intval($settings['original_quality'] ?? 85); ?></span>
-                                </div>
+                                <?php if ($settings['keep_original']): ?>
+                                    <div class="mmt-card-footer">
+                                        <div class="mmt-quality-control">
+                                            <label for="mmt_original_quality"><?php esc_html_e('Quality', 'modern-media-thumbnails'); ?></label>
+                                            <input type="range" 
+                                                   id="mmt_original_quality" 
+                                                   name="settings[original_quality]" 
+                                                   min="0" 
+                                                   max="100" 
+                                                   value="<?php echo intval($settings['original_quality']); ?>"
+                                                   class="mmt-quality-slider">
+                                            <span class="mmt-quality-value"><?php echo intval($settings['original_quality']); ?></span>
+                                        </div>
+                                    </div>
+                                <?php endif; ?>
                             </div>
                             
                             <!-- Generate AVIF Format Setting -->
@@ -134,38 +141,82 @@ class SettingsPage {
                                                id="mmt_generate_avif" 
                                                name="settings[generate_avif]" 
                                                value="1"
-                                               <?php checked($settings['generate_avif'] ?? false); ?>>
+                                               <?php checked($settings['generate_avif']); ?>>
                                         <span class="toggle"></span>
                                     </label>
                                 </div>
                                 <p class="mmt-card-description"><?php esc_html_e('Generate AVIF format for supported images (requires external library). AVIF provides superior compression compared to WebP.', 'modern-media-thumbnails'); ?></p>
-                                <div class="mmt-quality-control" style="<?php echo !($settings['generate_avif'] ?? false) ? 'display: none;' : ''; ?>">
-                                    <label for="mmt_avif_quality"><?php esc_html_e('Quality', 'modern-media-thumbnails'); ?></label>
-                                    <input type="range" 
-                                           id="mmt_avif_quality" 
-                                           name="settings[avif_quality]" 
-                                           min="0" 
-                                           max="100" 
-                                           value="<?php echo intval($settings['avif_quality'] ?? 75); ?>"
-                                           class="mmt-quality-slider">
-                                    <span class="mmt-quality-value"><?php echo intval($settings['avif_quality'] ?? 75); ?></span>
-                                </div>
+                                <?php if ($settings['generate_avif']): ?>
+                                    <div class="mmt-card-footer">
+                                        <div class="mmt-quality-control">
+                                            <label for="mmt_avif_quality"><?php esc_html_e('Quality', 'modern-media-thumbnails'); ?></label>
+                                            <input type="range" 
+                                                   id="mmt_avif_quality" 
+                                                   name="settings[avif_quality]" 
+                                                   min="0" 
+                                                   max="100" 
+                                                   value="<?php echo intval($settings['avif_quality']); ?>"
+                                                   class="mmt-quality-slider">
+                                            <span class="mmt-quality-value"><?php echo intval($settings['avif_quality']); ?></span>
+                                        </div>
+                                    </div>
+                                <?php endif; ?>
                             </div>
                             
-                            <!-- Convert GIFs to Video Setting -->
+                            <!-- Keep EXIF Data Setting -->
                             <div class="mmt-setting-card">
                                 <div class="mmt-card-header">
-                                    <h3><?php esc_html_e('Convert GIFs to Video', 'modern-media-thumbnails'); ?></h3>
+                                    <h3><?php esc_html_e('Preserve EXIF Data', 'modern-media-thumbnails'); ?></h3>
+                                    <label class="mmt-switch mmt-switch-compact">
+                                        <input type="checkbox" 
+                                               id="mmt_keep_exif" 
+                                               name="settings[keep_exif]" 
+                                               value="1"
+                                               <?php checked($settings['keep_exif']); ?>>
+                                        <span class="toggle"></span>
+                                    </label>
+                                </div>
+                                <p class="mmt-card-description"><?php esc_html_e('Keep EXIF metadata in generated thumbnails for better image quality and copyright information. Disable to save disk space.', 'modern-media-thumbnails'); ?></p>
+                                <?php if ($settings['keep_exif'] && current_theme_supports('post-thumbnails')): ?>
+                                    <div class="mmt-card-footer">
+                                        <label class="mmt-exif-thumbnail-checkbox">
+                                            <input type="checkbox" 
+                                                   id="mmt_keep_exif_thumbnails" 
+                                                   name="settings[keep_exif_thumbnails]" 
+                                                   value="1"
+                                                   <?php checked($settings['keep_exif_thumbnails']); ?>>
+                                            <?php
+                                                $thumb_w = get_option('thumbnail_size_w');
+                                                $thumb_h = get_option('thumbnail_size_h');
+                                                $thumb_label = sprintf(
+                                                    esc_html__('Keep EXIF for post thumbnails (%dx%d)', 'modern-media-thumbnails'),
+                                                    intval($thumb_w),
+                                                    intval($thumb_h)
+                                                );
+                                            ?>
+                                            <span class="mmt-checkbox-label"><?php echo $thumb_label; ?></span>
+                                        </label>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                            
+                            <!-- Convert GIFs to Video Setting (Coming Soon) -->
+                            <div class="mmt-setting-card" style="opacity: 0.6; pointer-events: none;">
+                                <div class="mmt-card-header">
+                                    <h3><?php esc_html_e('Convert GIFs', 'modern-media-thumbnails'); ?></h3>
                                     <label class="mmt-switch mmt-switch-compact">
                                         <input type="checkbox" 
                                                id="mmt_convert_gif" 
                                                name="settings[convert_gif]" 
                                                value="1"
-                                               <?php checked($settings['convert_gif'] ?? false); ?>>
+                                               disabled>
                                         <span class="toggle"></span>
                                     </label>
                                 </div>
-                                <p class="mmt-card-description"><?php esc_html_e('Convert animated GIFs to MP4/WebM formats for better performance and compatibility', 'modern-media-thumbnails'); ?></p>
+                                <p class="mmt-card-description"><?php esc_html_e('Convert animated GIFs to MP4/WebM formats and static to AVIF/WebP for better performance and compatibility', 'modern-media-thumbnails'); ?></p>
+                                <div class="mmt-card-footer">
+                                    <span class="mmt-badge-coming-soon"><?php esc_html_e('Coming Soon', 'modern-media-thumbnails'); ?></span>
+                                </div>
                             </div>
                         </div>
                     </form>
@@ -222,8 +273,8 @@ class SettingsPage {
                                 </td>
                                 <td>
                                     <div class="mmt-formats-wrapper">
-                                        <?php if ($settings['keep_original'] ?? false): ?>
-                                            <span class="mmt-format-badge mmt-format-original"><?php esc_html_e('Original (JPEG/PNG)', 'modern-media-thumbnails'); ?></span>
+                                        <?php if ($settings['keep_original']): ?>
+                                            <span class="mmt-format-badge mmt-format-original"><?php esc_html_e('Original (JPEG/PNG)', 'modern-media-thumbnails'); ?><span class="mmt-format-badge-quality"><?php echo intval($settings['original_quality']); ?>%</span></span>
                                         <?php endif; ?>
                                     </div>
                                 </td>
@@ -268,12 +319,12 @@ class SettingsPage {
                                         <td>
                                             <div class="mmt-formats-wrapper">
                                                 <div class="mmt-formats">
-                                                    <?php if ($settings['keep_original'] ?? false): ?>
-                                                        <span class="mmt-format-badge mmt-format-original"><?php esc_html_e('Original (JPEG/PNG)', 'modern-media-thumbnails'); ?></span>
+                                                    <?php if ($settings['keep_original']): ?>
+                                                        <span class="mmt-format-badge mmt-format-original"><?php esc_html_e('Original (JPEG/PNG)', 'modern-media-thumbnails'); ?><span class="mmt-format-badge-quality"><?php echo intval($settings['original_quality']); ?>%</span></span>
                                                     <?php endif; ?>
-                                                    <span class="mmt-format-badge mmt-format-webp"><?php esc_html_e('WebP', 'modern-media-thumbnails'); ?></span>
-                                                    <?php if ($settings['generate_avif'] ?? false): ?>
-                                                        <span class="mmt-format-badge mmt-format-avif"><?php esc_html_e('AVIF', 'modern-media-thumbnails'); ?></span>
+                                                    <span class="mmt-format-badge mmt-format-webp"><?php esc_html_e('WebP', 'modern-media-thumbnails'); ?><span class="mmt-format-badge-quality"><?php echo intval($settings['webp_quality']); ?>%</span></span>
+                                                    <?php if ($settings['generate_avif']): ?>
+                                                        <span class="mmt-format-badge mmt-format-avif"><?php esc_html_e('AVIF', 'modern-media-thumbnails'); ?><span class="mmt-format-badge-quality"><?php echo intval($settings['avif_quality']); ?>%</span></span>
                                                     <?php endif; ?>
                                                 </div>
                                                 <a href="#" class="mmt-regenerate-size" data-size="<?php echo esc_attr($size_name); ?>"><?php esc_html_e('Regenerate', 'modern-media-thumbnails'); ?></a>
@@ -452,6 +503,85 @@ class SettingsPage {
                 // Run when jQuery is ready
                 $(document).ready(function() {
                     loadMediaStats();
+                    
+                    // Handle dynamic footer rendering for keep_original
+                    $('#mmt_keep_original').change(function() {
+                        var $card = $(this).closest('.mmt-setting-card');
+                        var $footer = $card.find('.mmt-card-footer');
+                        
+                        if (this.checked) {
+                            // Show the existing footer if it exists, or create it
+                            if ($footer.length === 0) {
+                                var footerHtml = '<div class="mmt-card-footer">' +
+                                    '<div class="mmt-quality-control">' +
+                                    '<label for="mmt_original_quality"><?php esc_html_e('Quality', 'modern-media-thumbnails'); ?></label>' +
+                                    '<input type="range" id="mmt_original_quality" name="settings[original_quality]" min="0" max="100" value="<?php echo intval($settings['original_quality']); ?>" class="mmt-quality-slider">' +
+                                    '<span class="mmt-quality-value"><?php echo intval($settings['original_quality']); ?></span>' +
+                                    '</div>' +
+                                    '</div>';
+                                $card.append(footerHtml);
+                            } else {
+                                $footer.show();
+                            }
+                        } else {
+                            // Hide or remove the footer
+                            if ($footer.length > 0) {
+                                $footer.remove();
+                            }
+                        }
+                    });
+                    
+                    // Handle dynamic footer rendering for generate_avif
+                    $('#mmt_generate_avif').change(function() {
+                        var $card = $(this).closest('.mmt-setting-card');
+                        var $footer = $card.find('.mmt-card-footer');
+                        
+                        if (this.checked) {
+                            // Show the existing footer if it exists, or create it
+                            if ($footer.length === 0) {
+                                var footerHtml = '<div class="mmt-card-footer">' +
+                                    '<div class="mmt-quality-control">' +
+                                    '<label for="mmt_avif_quality"><?php esc_html_e('Quality', 'modern-media-thumbnails'); ?></label>' +
+                                    '<input type="range" id="mmt_avif_quality" name="settings[avif_quality]" min="0" max="100" value="<?php echo intval($settings['avif_quality']); ?>" class="mmt-quality-slider">' +
+                                    '<span class="mmt-quality-value"><?php echo intval($settings['avif_quality']); ?></span>' +
+                                    '</div>' +
+                                    '</div>';
+                                $card.append(footerHtml);
+                            } else {
+                                $footer.show();
+                            }
+                        } else {
+                            // Hide or remove the footer
+                            if ($footer.length > 0) {
+                                $footer.remove();
+                            }
+                        }
+                    });
+                    
+                    // Handle dynamic footer rendering for keep_exif
+                    $('#mmt_keep_exif').change(function() {
+                        var $card = $(this).closest('.mmt-setting-card');
+                        var $footer = $card.find('.mmt-card-footer');
+                        
+                        if (this.checked) {
+                            // Show the existing footer if it exists
+                            if ($footer.length > 0) {
+                                $footer.show();
+                            }
+                        } else {
+                            // Hide the footer
+                            if ($footer.length > 0) {
+                                $footer.hide();
+                            }
+                        }
+                    });
+                    
+                    // Update quality value display on input
+                    $(document).on('input', '.mmt-quality-slider', function() {
+                        var $slider = $(this);
+                        var $valueDisplay = $slider.siblings('.mmt-quality-value');
+                        $valueDisplay.text($(this).val());
+                    });
                 });
             })();
         </script>
