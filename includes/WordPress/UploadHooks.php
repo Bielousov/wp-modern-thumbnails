@@ -34,6 +34,16 @@ class UploadHooks {
             return $metadata;
         }
         
+        // Get format settings
+        $all_settings = FormatManager::getFormatSettings();
+        $webp_quality = intval($all_settings['webp_quality'] ?? 80);
+        $original_quality = intval($all_settings['original_quality'] ?? 85);
+        $avif_quality = intval($all_settings['avif_quality'] ?? 75);
+        $convert_gif = FormatManager::shouldConvertGif();
+        
+        // Get source image MIME type
+        $source_mime = get_post_mime_type(get_post()->ID) ?: 'image/jpeg';
+        
         // Always generate WebP for all thumbnails
         $image_sizes = ImageSizeManager::getAllImageSizes();
         
@@ -53,6 +63,12 @@ class UploadHooks {
                     $crop = isset($size_info['crop']) ? $size_info['crop'] : false;
                     
                     if ($width && $height) {
+                        // Handle GIF files specially
+                        if ($source_mime === 'image/gif' && !$convert_gif) {
+                            // Don't generate WebP/AVIF for GIFs when not converting
+                            continue;
+                        }
+                        
                         // Always generate WebP
                         $webp_file = preg_replace('/\.[^.]+$/', '.webp', $size_file);
                         ThumbnailGenerator::generateWebP(
@@ -60,8 +76,31 @@ class UploadHooks {
                             $webp_file,
                             $width,
                             $height,
-                            $crop
+                            $crop,
+                            $webp_quality
                         );
+                        
+                        // Generate original format if enabled
+                        if (FormatManager::shouldKeepOriginal()) {
+                            $format_map = [
+                                'image/jpeg' => 'jpg',
+                                'image/png' => 'png',
+                                'image/gif' => 'gif',
+                                'image/webp' => 'webp',
+                            ];
+                            $original_format = $format_map[$source_mime] ?? 'jpg';
+                            $original_file = preg_replace('/\.[^.]+$/', '.' . $original_format, $size_file);
+                            
+                            ThumbnailGenerator::generateThumbnail(
+                                $source_path,
+                                $original_file,
+                                $width,
+                                $height,
+                                $crop,
+                                $original_format,
+                                $original_quality
+                            );
+                        }
                         
                         // Generate AVIF if enabled
                         if (FormatManager::shouldGenerateAVIF()) {
@@ -71,7 +110,8 @@ class UploadHooks {
                                 $avif_file,
                                 $width,
                                 $height,
-                                $crop
+                                $crop,
+                                $avif_quality
                             );
                         }
                         

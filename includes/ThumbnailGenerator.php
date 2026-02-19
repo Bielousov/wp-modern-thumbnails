@@ -20,9 +20,10 @@ class ThumbnailGenerator {
      * @param int $height Target height
      * @param bool $crop Whether to crop image
      * @param string $format Image format (webp, avif, etc.)
+     * @param int $quality Image quality (0-100), defaults to 80
      * @return bool
      */
-    public static function generateThumbnail($source_path, $dest_path, $width, $height, $crop, $format) {
+    public static function generateThumbnail($source_path, $dest_path, $width, $height, $crop, $format, $quality = 80) {
         try {
             if (!file_exists($source_path)) {
                 return false;
@@ -61,7 +62,7 @@ class ThumbnailGenerator {
             
             // Set format and quality
             $imagick->setImageFormat(strtolower($format));
-            $imagick->setImageCompressionQuality(self::QUALITY);
+            $imagick->setImageCompressionQuality($quality);
             
             // Create destination directory if it doesn't exist
             $dest_dir = dirname($dest_path);
@@ -88,10 +89,11 @@ class ThumbnailGenerator {
      * @param int $width
      * @param int $height
      * @param bool $crop
+     * @param int $quality Image quality (0-100), defaults to 80
      * @return bool
      */
-    public static function generateWebP($source_path, $dest_path, $width, $height, $crop) {
-        return self::generateThumbnail($source_path, $dest_path, $width, $height, $crop, 'webp');
+    public static function generateWebP($source_path, $dest_path, $width, $height, $crop, $quality = 80) {
+        return self::generateThumbnail($source_path, $dest_path, $width, $height, $crop, 'webp', $quality);
     }
     
     /**
@@ -102,9 +104,10 @@ class ThumbnailGenerator {
      * @param int $width
      * @param int $height
      * @param bool $crop
+     * @param int $quality Image quality (0-100), defaults to 75
      * @return bool
      */
-    public static function generateAVIF($source_path, $dest_path, $width, $height, $crop) {
-        return self::generateThumbnail($source_path, $dest_path, $width, $height, $crop, 'avif');
+    public static function generateAVIF($source_path, $dest_path, $width, $height, $crop, $quality = 75) {
+        return self::generateThumbnail($source_path, $dest_path, $width, $height, $crop, 'avif', $quality);
     }
 }

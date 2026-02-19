@@ -199,6 +199,11 @@ class Ajax {
         // Get user settings
         $keep_original = FormatManager::shouldKeepOriginal();
         $generate_avif = FormatManager::shouldGenerateAVIF();
+        $convert_gif = FormatManager::shouldConvertGif();
+        $all_settings = FormatManager::getFormatSettings();
+        $webp_quality = intval($all_settings['webp_quality'] ?? 80);
+        $original_quality = intval($all_settings['original_quality'] ?? 85);
+        $avif_quality = intval($all_settings['avif_quality'] ?? 75);
         
         // Map MIME type to format for original generation
         $format_map = [
@@ -214,16 +219,23 @@ class Ajax {
         $size_base = preg_replace('/\.[^\.]+$/', '', $size_file);
         self::deleteExistingFiles($size_base);
         
-        // Always generate WebP
+        // Handle GIF files specially - if convert_gif is disabled, only create GIF
+        if ($original_mime_type === 'image/gif' && !$convert_gif) {
+            // For GIFs when not converting, just keep the original GIF thumbnail
+            // Don't generate WebP or AVIF versions
+            return 0; // No new formats generated, original GIF already exists
+        }
+        
+        // Always generate WebP (unless it's a GIF and we're not converting)
         $webp_file = $size_base . '.webp';
-        if (\ModernMediaThumbnails\ThumbnailGenerator::generateWebP($source_file, $webp_file, $width, $height, $crop)) {
+        if (\ModernMediaThumbnails\ThumbnailGenerator::generateWebP($source_file, $webp_file, $width, $height, $crop, $webp_quality)) {
             $count++;
         }
         
         // Keep original format if enabled
         if ($keep_original) {
             $original_file = $size_base . '.' . $original_format;
-            if (\ModernMediaThumbnails\ThumbnailGenerator::generateThumbnail($source_file, $original_file, $width, $height, $crop, $original_format)) {
+            if (\ModernMediaThumbnails\ThumbnailGenerator::generateThumbnail($source_file, $original_file, $width, $height, $crop, $original_format, $original_quality)) {
                 $count++;
             }
         }
@@ -231,7 +243,7 @@ class Ajax {
         // Generate AVIF if enabled
         if ($generate_avif) {
             $avif_file = $size_base . '.avif';
-            if (\ModernMediaThumbnails\ThumbnailGenerator::generateAVIF($source_file, $avif_file, $width, $height, $crop)) {
+            if (\ModernMediaThumbnails\ThumbnailGenerator::generateAVIF($source_file, $avif_file, $width, $height, $crop, $avif_quality)) {
                 $count++;
             }
         }
@@ -270,11 +282,14 @@ class Ajax {
         
         $settings = isset($_POST['settings']) ? (array)$_POST['settings'] : [];
         
-        // Update settings with actual values (convert 1/0 to true/false)
+        // Update settings with actual values (convert 1/0 to true/false and sanitize quality values)
         FormatManager::updateSettings([
             'keep_original' => (bool)($settings['keep_original'] ?? false),
             'generate_avif' => (bool)($settings['generate_avif'] ?? false),
             'convert_gif' => (bool)($settings['convert_gif'] ?? false),
+            'webp_quality' => intval($settings['webp_quality'] ?? 80),
+            'original_quality' => intval($settings['original_quality'] ?? 85),
+            'avif_quality' => intval($settings['avif_quality'] ?? 75),
         ]);
         
         wp_send_json_success([
@@ -560,6 +575,17 @@ class Ajax {
             // Process all sizes for this attachment
             $image_sizes = \ModernMediaThumbnails\ImageSizeManager::getAllImageSizes();
             
+            // Get quality settings
+            $all_settings = FormatManager::getFormatSettings();
+            $webp_quality = intval($all_settings['webp_quality'] ?? 80);
+            $original_quality = intval($all_settings['original_quality'] ?? 85);
+            $avif_quality = intval($all_settings['avif_quality'] ?? 75);
+            $convert_gif = FormatManager::shouldConvertGif();
+            
+            // Get source image MIME type
+            $attachment = get_post($attachment_id);
+            $source_mime = $attachment ? get_post_mime_type($attachment->ID) : 'image/jpeg';
+            
             foreach ($metadata['sizes'] as $size_name => $size_data) {
                 if (!isset($image_sizes[$size_name])) {
                     continue;
@@ -571,16 +597,38 @@ class Ajax {
                 $crop = isset($image_sizes[$size_name]['crop']) ? $image_sizes[$size_name]['crop'] : false;
                 
                 if ($width && $height) {
+                    // Handle GIF files specially
+                    if ($source_mime === 'image/gif' && !$convert_gif) {
+                        // Don't generate WebP/AVIF for GIFs when not converting
+                        continue;
+                    }
+                    
                     // Generate WebP
                     $webp_file = preg_replace('/\.[^\.]+$/', '.webp', $size_file);
-                    if (\ModernMediaThumbnails\ThumbnailGenerator::generateWebP($file, $webp_file, $width, $height, $crop)) {
+                    if (\ModernMediaThumbnails\ThumbnailGenerator::generateWebP($file, $webp_file, $width, $height, $crop, $webp_quality)) {
                         $regenerated++;
+                    }
+                    
+                    // Generate original format if enabled
+                    if (FormatManager::shouldKeepOriginal()) {
+                        $format_map = [
+                            'image/jpeg' => 'jpg',
+                            'image/png' => 'png',
+                            'image/gif' => 'gif',
+                            'image/webp' => 'webp',
+                        ];
+                        $original_format = $format_map[$source_mime] ?? 'jpg';
+                        $original_file = preg_replace('/\.[^\.]+$/', '.' . $original_format, $size_file);
+                        
+                        if (\ModernMediaThumbnails\ThumbnailGenerator::generateThumbnail($file, $original_file, $width, $height, $crop, $original_format, $original_quality)) {
+                            $regenerated++;
+                        }
                     }
                     
                     // Generate AVIF if enabled
                     if (FormatManager::shouldGenerateAVIF()) {
                         $avif_file = preg_replace('/\.[^\.]+$/', '.avif', $size_file);
-                        if (\ModernMediaThumbnails\ThumbnailGenerator::generateAVIF($file, $avif_file, $width, $height, $crop)) {
+                        if (\ModernMediaThumbnails\ThumbnailGenerator::generateAVIF($file, $avif_file, $width, $height, $crop, $avif_quality)) {
                             $regenerated++;
                         }
                     }
@@ -708,24 +756,56 @@ class Ajax {
             $crop = isset($image_sizes[$size_name]['crop']) ? $image_sizes[$size_name]['crop'] : false;
             
             if ($width && $height) {
-                // Generate WebP
-                $webp_file = preg_replace('/\.[^\.]+$/', '.webp', $size_file);
-                if (\ModernMediaThumbnails\ThumbnailGenerator::generateWebP($file, $webp_file, $width, $height, $crop)) {
-                    $regenerated++;
-                }
+                // Get quality settings
+                $all_settings = FormatManager::getFormatSettings();
+                $webp_quality = intval($all_settings['webp_quality'] ?? 80);
+                $original_quality = intval($all_settings['original_quality'] ?? 85);
+                $avif_quality = intval($all_settings['avif_quality'] ?? 75);
+                $convert_gif = FormatManager::shouldConvertGif();
                 
-                // Generate AVIF if enabled
-                if (FormatManager::shouldGenerateAVIF()) {
-                    $avif_file = preg_replace('/\.[^\.]+$/', '.avif', $size_file);
-                    if (\ModernMediaThumbnails\ThumbnailGenerator::generateAVIF($file, $avif_file, $width, $height, $crop)) {
+                // Get source image MIME type
+                $attachment = get_post($attachment_id);
+                $source_mime = $attachment ? get_post_mime_type($attachment->ID) : 'image/jpeg';
+                
+                // Handle GIF files specially
+                if ($source_mime === 'image/gif' && !$convert_gif) {
+                    // Don't generate WebP/AVIF for GIFs when not converting
+                } else {
+                    // Generate WebP
+                    $webp_file = preg_replace('/\.[^\.]+$/', '.webp', $size_file);
+                    if (\ModernMediaThumbnails\ThumbnailGenerator::generateWebP($file, $webp_file, $width, $height, $crop, $webp_quality)) {
                         $regenerated++;
                     }
-                }
-                
-                // Delete original if not keeping it
-                if (!FormatManager::shouldKeepOriginal()) {
-                    if (file_exists($size_file)) {
-                        @unlink($size_file);
+                    
+                    // Generate original format if enabled
+                    if (FormatManager::shouldKeepOriginal()) {
+                        $format_map = [
+                            'image/jpeg' => 'jpg',
+                            'image/png' => 'png',
+                            'image/gif' => 'gif',
+                            'image/webp' => 'webp',
+                        ];
+                        $original_format = $format_map[$source_mime] ?? 'jpg';
+                        $original_file = preg_replace('/\.[^\.]+$/', '.' . $original_format, $size_file);
+                        
+                        if (\ModernMediaThumbnails\ThumbnailGenerator::generateThumbnail($file, $original_file, $width, $height, $crop, $original_format, $original_quality)) {
+                            $regenerated++;
+                        }
+                    }
+                    
+                    // Generate AVIF if enabled
+                    if (FormatManager::shouldGenerateAVIF()) {
+                        $avif_file = preg_replace('/\.[^\.]+$/', '.avif', $size_file);
+                        if (\ModernMediaThumbnails\ThumbnailGenerator::generateAVIF($file, $avif_file, $width, $height, $crop, $avif_quality)) {
+                            $regenerated++;
+                        }
+                    }
+                    
+                    // Delete original if not keeping it
+                    if (!FormatManager::shouldKeepOriginal()) {
+                        if (file_exists($size_file)) {
+                            @unlink($size_file);
+                        }
                     }
                 }
             }

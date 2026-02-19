@@ -18,7 +18,7 @@ The FormatManager class already had all necessary global settings methods:
 - Replaced `saveFormatSettings()` method with `saveSettings()` method
 - Updated AJAX action from `mmt_save_formats` to `mmt_save_settings`
 - New `saveSettings()` handles global settings:
-  - `keep_original`: Keep original JPEG/PNG files after generating optimized versions
+  - `keep_original` (WordPress Default): Keep original JPEG/PNG files after generating optimized versions
   - `generate_avif`: Enable/disable AVIF format generation
   - `convert_gif`: Enable/disable GIF to video conversion
 
@@ -36,7 +36,7 @@ add_action('wp_ajax_mmt_save_settings', [self::class, 'saveSettings']);
 **Changes:**
 - Removed per-image-size format controls (flip switch + AVIF checkbox)
 - Added global settings form with three checkboxes:
-  - Keep Original Images (checkbox)
+  - WordPress Default (checkbox)
   - Generate AVIF Format (checkbox)
   - Convert GIFs to Video (checkbox)
 - Simplified image size display to show fixed format handling
@@ -83,7 +83,7 @@ $('.mmt-regenerate-size').on('click', function (e) { ... });
 
 For ALL thumbnail sizes:
 - ✅ **Always**: Generate WebP version
-- ✅ **Always**: Keep original JPEG/PNG (unless "Keep Original" is unchecked)
+- ✅ **Always**: Keep original JPEG/PNG (unless "WordPress Default" is unchecked)
 - 📝 **If enabled**: Generate AVIF version (global setting)
 - 📝 **If enabled**: Convert GIFs to MP4/WebM (global setting)
 
@@ -97,7 +97,7 @@ For ALL thumbnail sizes:
 ## Testing Recommendations
 
 1. Verify global settings are saved correctly via AJAX
-2. Test all checkbox combinations (keep original, AVIF, GIF conversion)
+2. Test all checkbox combinations (WordPress Default, AVIF, GIF conversion)
 3. Verify settings persist after page reload
 4. Test regeneration functionality still works
 5. Verify per-size regeneration buttons still function

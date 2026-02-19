@@ -35,9 +35,12 @@ class FormatManager {
      */
     public static function getDefaults() {
         return [
-            'keep_original' => false,      // Keep original JPEG/PNG thumbnails
+            'keep_original' => false,      // WordPress Default - Keep original JPEG/PNG thumbnails
             'generate_avif' => false,      // Generate AVIF thumbnails
             'convert_gif' => false,        // Convert GIF to WebP
+            'webp_quality' => 80,          // WebP quality (0-100)
+            'original_quality' => 85,      // Original format quality (0-100)
+            'avif_quality' => 75,          // AVIF quality (0-100)
         ];
     }
     
@@ -62,15 +65,29 @@ class FormatManager {
     public static function updateSettings($settings) {
         $current = self::getFormatSettings();
         
-        // Sanitize and validate input (ensure proper boolean conversion)
+        // Sanitize and validate input (ensure proper boolean conversion and quality range)
         $updated = array_merge($current, [
             'keep_original' => (bool)($settings['keep_original'] ?? false),
             'generate_avif' => (bool)($settings['generate_avif'] ?? false),
             'convert_gif' => (bool)($settings['convert_gif'] ?? false),
+            'webp_quality' => self::sanitizeQuality($settings['webp_quality'] ?? 80),
+            'original_quality' => self::sanitizeQuality($settings['original_quality'] ?? 85),
+            'avif_quality' => self::sanitizeQuality($settings['avif_quality'] ?? 75),
         ]);
         
         // Store in database with autoload for better performance
         return update_option(self::OPTION_NAME, $updated, false);
+    }
+    
+    /**
+     * Sanitize quality value to be between 0 and 100
+     * 
+     * @param mixed $value
+     * @return int
+     */
+    private static function sanitizeQuality($value) {
+        $quality = intval($value);
+        return max(0, min(100, $quality));
     }
     
     /**

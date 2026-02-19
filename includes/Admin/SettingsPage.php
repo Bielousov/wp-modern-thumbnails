@@ -70,10 +70,38 @@ class SettingsPage {
                         <p><?php esc_html_e('Configure how the plugin processes and stores image formats.', 'modern-media-thumbnails'); ?></p>
                         
                         <div class="mmt-settings-grid">
-                            <!-- Keep Original Images Setting -->
+                            <!-- Generate WebP Format Setting (Always Enabled) -->
                             <div class="mmt-setting-card">
                                 <div class="mmt-card-header">
-                                    <h3><?php esc_html_e('Keep Original Images', 'modern-media-thumbnails'); ?></h3>
+                                    <h3><?php esc_html_e('Generate WebP Format', 'modern-media-thumbnails'); ?></h3>
+                                    <label class="mmt-switch mmt-switch-compact">
+                                        <input type="checkbox" 
+                                               id="mmt_generate_webp" 
+                                               name="settings[generate_webp]" 
+                                               value="1"
+                                               checked
+                                               disabled>
+                                        <span class="toggle"></span>
+                                    </label>
+                                </div>
+                                <p class="mmt-card-description"><?php esc_html_e('Generate WebP format for all images. This is always enabled and required for optimal performance.', 'modern-media-thumbnails'); ?></p>
+                                <div class="mmt-quality-control">
+                                    <label for="mmt_webp_quality"><?php esc_html_e('Quality', 'modern-media-thumbnails'); ?></label>
+                                    <input type="range" 
+                                           id="mmt_webp_quality" 
+                                           name="settings[webp_quality]" 
+                                           min="0" 
+                                           max="100" 
+                                           value="<?php echo intval($settings['webp_quality'] ?? 80); ?>"
+                                           class="mmt-quality-slider">
+                                    <span class="mmt-quality-value"><?php echo intval($settings['webp_quality'] ?? 80); ?></span>
+                                </div>
+                            </div>
+                            
+                            <!-- WordPress Default Setting -->
+                            <div class="mmt-setting-card">
+                                <div class="mmt-card-header">
+                                    <h3><?php esc_html_e('WordPress Default', 'modern-media-thumbnails'); ?></h3>
                                     <label class="mmt-switch mmt-switch-compact">
                                         <input type="checkbox" 
                                                id="mmt_keep_original" 
@@ -83,7 +111,18 @@ class SettingsPage {
                                         <span class="toggle"></span>
                                     </label>
                                 </div>
-                                <p class="mmt-card-description"><?php esc_html_e('Keep original image files even after generating optimized formats', 'modern-media-thumbnails'); ?></p>
+                                <p class="mmt-card-description"><?php esc_html_e('Generate JPEG or PNG versions matching the original file format to ensure compatibility with legacy browsers.', 'modern-media-thumbnails'); ?></p>
+                                <div class="mmt-quality-control" style="<?php echo !($settings['keep_original'] ?? false) ? 'display: none;' : ''; ?>">
+                                    <label for="mmt_original_quality"><?php esc_html_e('Quality', 'modern-media-thumbnails'); ?></label>
+                                    <input type="range" 
+                                           id="mmt_original_quality" 
+                                           name="settings[original_quality]" 
+                                           min="0" 
+                                           max="100" 
+                                           value="<?php echo intval($settings['original_quality'] ?? 85); ?>"
+                                           class="mmt-quality-slider">
+                                    <span class="mmt-quality-value"><?php echo intval($settings['original_quality'] ?? 85); ?></span>
+                                </div>
                             </div>
                             
                             <!-- Generate AVIF Format Setting -->
@@ -100,6 +139,17 @@ class SettingsPage {
                                     </label>
                                 </div>
                                 <p class="mmt-card-description"><?php esc_html_e('Generate AVIF format for supported images (requires external library). AVIF provides superior compression compared to WebP.', 'modern-media-thumbnails'); ?></p>
+                                <div class="mmt-quality-control" style="<?php echo !($settings['generate_avif'] ?? false) ? 'display: none;' : ''; ?>">
+                                    <label for="mmt_avif_quality"><?php esc_html_e('Quality', 'modern-media-thumbnails'); ?></label>
+                                    <input type="range" 
+                                           id="mmt_avif_quality" 
+                                           name="settings[avif_quality]" 
+                                           min="0" 
+                                           max="100" 
+                                           value="<?php echo intval($settings['avif_quality'] ?? 75); ?>"
+                                           class="mmt-quality-slider">
+                                    <span class="mmt-quality-value"><?php echo intval($settings['avif_quality'] ?? 75); ?></span>
+                                </div>
                             </div>
                             
                             <!-- Convert GIFs to Video Setting -->
@@ -311,7 +361,7 @@ class SettingsPage {
                                 <td><?php esc_html_e('Disk space occupied by original/main media files.', 'modern-media-thumbnails'); ?></td>
                             </tr>
                             <tr data-stat="thumbnail-size">
-                                <td><strong><?php esc_html_e('Thumbnails Size', 'modern-media-thumbnails'); ?></strong></td>
+                                <td><strong><?php esc_html_e('Generated Thumbnails Size', 'modern-media-thumbnails'); ?></strong></td>
                                 <td class="mmt-stat-value"><span class="mmt-skeleton mmt-skeleton-text" style="width: 85px;"></span></td>
                                 <td><?php esc_html_e('Disk space occupied by all thumbnail variants.', 'modern-media-thumbnails'); ?></td>
                             </tr>
@@ -469,9 +519,6 @@ class SettingsPage {
                 continue;
             }
             
-            $upload_dir = wp_upload_dir();
-            $base_path = $upload_dir['basedir'];
-            
             // Get the directory of the original file
             $original_file = get_attached_file($attachment->ID);
             if (!$original_file) {
@@ -480,12 +527,22 @@ class SettingsPage {
             
             $dir = dirname($original_file);
             
-            // Sum up all thumbnail files
+            // Sum up all thumbnail files (original + any variants like webp, avif, etc.)
             foreach ($metadata['sizes'] as $size_name => $size_data) {
                 $thumbnail_file = $dir . '/' . $size_data['file'];
                 
-                if (file_exists($thumbnail_file)) {
-                    $total_size += filesize($thumbnail_file);
+                // Get the base path without extension
+                $size_base = preg_replace('/\.[^\.]+$/', '', $thumbnail_file);
+                
+                // Find all files matching this base path with any extension
+                $matching_files = glob($size_base . '.*');
+                
+                if (!empty($matching_files)) {
+                    foreach ($matching_files as $file) {
+                        if (file_exists($file)) {
+                            $total_size += filesize($file);
+                        }
+                    }
                 }
             }
         }
