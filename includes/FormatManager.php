@@ -62,11 +62,11 @@ class FormatManager {
     public static function updateSettings($settings) {
         $current = self::getFormatSettings();
         
-        // Sanitize and validate input
+        // Sanitize and validate input (ensure proper boolean conversion)
         $updated = array_merge($current, [
-            'keep_original' => (bool)(isset($settings['keep_original']) && $settings['keep_original']),
-            'generate_avif' => (bool)(isset($settings['generate_avif']) && $settings['generate_avif']),
-            'convert_gif' => (bool)(isset($settings['convert_gif']) && $settings['convert_gif']),
+            'keep_original' => (bool)($settings['keep_original'] ?? false),
+            'generate_avif' => (bool)($settings['generate_avif'] ?? false),
+            'convert_gif' => (bool)($settings['convert_gif'] ?? false),
         ]);
         
         // Store in database with autoload for better performance

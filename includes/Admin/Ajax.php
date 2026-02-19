@@ -80,11 +80,11 @@ class Ajax {
         
         $settings = isset($_POST['settings']) ? (array)$_POST['settings'] : [];
         
-        // Update settings
+        // Update settings with actual values (convert 1/0 to true/false)
         FormatManager::updateSettings([
-            'keep_original' => isset($settings['keep_original']),
-            'generate_avif' => isset($settings['generate_avif']),
-            'convert_gif' => isset($settings['convert_gif']),
+            'keep_original' => (bool)($settings['keep_original'] ?? false),
+            'generate_avif' => (bool)($settings['generate_avif'] ?? false),
+            'convert_gif' => (bool)($settings['convert_gif'] ?? false),
         ]);
         
         wp_send_json_success([
