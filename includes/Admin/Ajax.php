@@ -10,6 +10,7 @@ namespace ModernMediaThumbnails\Admin;
 use ModernMediaThumbnails\FormatManager;
 use ModernMediaThumbnails\Settings;
 use ModernMediaThumbnails\WordPress\RegenerationManager;
+use ModernMediaThumbnails\WordPress\MetadataManager;
 use ModernMediaThumbnails\Admin\SettingsPage;
 
 class Ajax {
@@ -885,6 +886,13 @@ class Ajax {
             // Regenerate all sizes for this attachment
             $regenerated = self::regenerateAttachmentSize($post_id, null);
             
+            // Update attachment metadata to include WebP file references
+            $updated_metadata = wp_get_attachment_metadata($post_id);
+            $updated_metadata = MetadataManager::updateMetadataWithWebP($post_id, $updated_metadata);
+            
+            // Save metadata to database
+            wp_update_attachment_metadata($post_id, $updated_metadata);
+            
             // Build format list based on enabled options
             $enabled_formats = [];
             
@@ -929,12 +937,27 @@ class Ajax {
                 $message = 'Attachment processed';
             }
             
+            // Get updated metadata to send back the new thumbnail URLs
+            $final_metadata = wp_get_attachment_metadata($post_id);
+            $attachment_url_base = dirname(wp_get_attachment_url($post_id));
+            
+            // Build thumbnail URLs
+            $thumbnails = [];
+            if (!empty($final_metadata['sizes'])) {
+                foreach ($final_metadata['sizes'] as $size_name => $size_data) {
+                    if (!empty($size_data['file'])) {
+                        $thumbnails[$size_name] = $attachment_url_base . '/' . $size_data['file'];
+                    }
+                }
+            }
+            
             wp_send_json_success([
                 'message' => $message,
                 'post_id' => $post_id,
                 'count' => $regenerated,
                 'sizes' => $size_count,
-                'formats' => $enabled_formats
+                'formats' => $enabled_formats,
+                'thumbnails' => $thumbnails
             ]);
         } catch (\Exception $e) {
             error_log('Error regenerating attachment ' . $post_id . ': ' . $e->getMessage());

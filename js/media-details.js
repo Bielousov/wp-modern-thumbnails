@@ -82,11 +82,16 @@
                         }, 5000);
                     }
 
-                    // Reload the thumbnail preview if available
-                    const img = document.querySelector('.attachment-preview img');
-                    if (img && img.src) {
-                        const separator = img.src.includes('?') ? '&' : '?';
-                        img.src = img.src + separator + 't=' + Date.now();
+                    // Update thumbnail preview with new URL from response
+                    if (result.data && result.data.thumbnails) {
+                        // Get the first thumbnail URL (usually 'thumbnail' size)
+                        const firstThumbnailUrl = Object.values(result.data.thumbnails)[0];
+                        if (firstThumbnailUrl) {
+                            const img = document.querySelector('.attachment-preview img');
+                            if (img) {
+                                img.src = firstThumbnailUrl;
+                            }
+                        }
                     }
                 } else {
                     // Show error message

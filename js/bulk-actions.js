@@ -171,16 +171,22 @@
             .then(result => {
                 if (result.success) {
                     processed++;
+                    
+                    // Update thumbnail image with new WebP URL from response
+                    if (result.data && result.data.thumbnails) {
+                        const firstThumbnailUrl = Object.values(result.data.thumbnails)[0];
+                        if (firstThumbnailUrl) {
+                            const postElement = document.getElementById('post-' + imageId);
+                            const mediaIcon = postElement?.querySelector('.media-icon img');
+                            if (mediaIcon) {
+                                mediaIcon.src = firstThumbnailUrl;
+                            }
+                        }
+                    }
+                    
                     // Remove processing state from this row
                     if (row) {
                         row.classList.remove('mmt-processing');
-                        
-                        // Reload thumbnail image with cache-busting parameter
-                        const img = row.querySelector('img');
-                        if (img && img.src) {
-                            const separator = img.src.includes('?') ? '&' : '?';
-                            img.src = img.src + separator + 't=' + Date.now();
-                        }
                     }
                 } else {
                     errors++;
