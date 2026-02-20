@@ -40,7 +40,7 @@ class ThumbnailGenerator {
             }
             
             // Clone the imagick object to avoid modifying the original
-            $imagick = $imagick->clone();
+            $imagick = clone $imagick;
             
             // Get original dimensions
             $orig_width = $imagick->getImageWidth();
