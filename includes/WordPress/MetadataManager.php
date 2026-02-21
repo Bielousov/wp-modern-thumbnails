@@ -18,8 +18,104 @@ class MetadataManager {
      * @return void
      */
     public static function register() {
-        // Filter attachment metadata to serve WebP files
-        add_filter('wp_get_attachment_metadata', [self::class, 'filterAttachmentMetadata'], 10, 2);
+        // Hook into metadata SAVE to ensure WebP metadata is persisted
+        // wp_update_attachment_metadata is the action when metadata is saved to database
+        add_action('wp_update_attachment_metadata', [self::class, 'onMetadataUpdate'], 10, 2);
+        
+        // Also hook into native thumbnail generation
+        add_filter('wp_generate_attachment_metadata', [self::class, 'interceptGeneratedMetadata'], 10, 2);
+    }
+    
+    /**
+     * Intercept WordPress native thumbnail generation
+     * 
+     * Hooks into wp_generate_attachment_metadata to catch metadata generation from:
+     * - WordPress native regeneration
+     * - Other plugins
+     * - Any source that generates thumbnails
+     * 
+     * Automatically generates WebP versions for thumbnails and updates metadata.
+     * 
+     * @param array $metadata Generated metadata
+     * @param int $attachment_id Attachment ID
+     * @return array Updated metadata with WebP references
+     */
+    public static function interceptGeneratedMetadata($metadata, $attachment_id) {
+        // Get attachment file
+        $attachment = get_post($attachment_id);
+        if (!$attachment) {
+            return $metadata;
+        }
+        
+        $attachment_file = get_attached_file($attachment_id);
+        if (!$attachment_file || !file_exists($attachment_file)) {
+            return $metadata;
+        }
+        
+        $attachment_dir = dirname($attachment_file);
+        $settings = \ModernMediaThumbnails\Settings::getWithDefaults();
+        $webp_quality = intval($settings['webp_quality'] ?? 80);
+        
+        try {
+            // Generate WebP for each thumbnail size
+            if (!empty($metadata['sizes']) && is_array($metadata['sizes'])) {
+                foreach ($metadata['sizes'] as $size_name => $size_data) {
+                    if (!is_array($size_data) || empty($size_data['file'])) {
+                        continue;
+                    }
+                    
+                    $size_file = $attachment_dir . '/' . $size_data['file'];
+                    if (!file_exists($size_file)) {
+                        continue;
+                    }
+                    
+                    $size_base = preg_replace('/\.[^\.]+$/', '', $size_file);
+                    $size_webp = $size_base . '.webp';
+                    
+                    // Generate WebP if it doesn't exist
+                    if (!file_exists($size_webp)) {
+                        $width = intval($size_data['width'] ?? 0);
+                        $height = intval($size_data['height'] ?? 0);
+                        
+                        if ($width && $height) {
+                            // Use original source file to generate WebP thumbnail
+                            \ModernMediaThumbnails\ThumbnailGenerator::generateWebP(
+                                $attachment_file,
+                                $size_webp,
+                                $width, $height, false,
+                                $webp_quality
+                            );
+                        }
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            // Silently fail - don't break WordPress regeneration if WebP generation fails
+        }
+        
+        // Update metadata to point to WebP files
+        return self::updateMetadataWithWebP($attachment_id, $metadata);
+    }
+    
+    /**
+     * Action hook: Save updated metadata with WebP references to database
+     * 
+     * Called by wp_update_attachment_metadata action after metadata has been updated.
+     * Ensures WebP references are persisted to database.
+     * 
+     * @param int $attachment_id Attachment ID
+     * @param array $metadata Attachment metadata
+     * @return void
+     */
+    public static function onMetadataUpdate($attachment_id, $metadata) {
+        // Check if this metadata needs WebP file references
+        $updated_metadata = self::updateMetadataWithWebP($attachment_id, $metadata);
+        
+        // If metadata was actually updated (WebP files found and linked), save it
+        if ($updated_metadata !== $metadata) {
+            // Update in database
+            update_post_meta($attachment_id, '_wp_attachment_metadata', $updated_metadata);
+        }
     }
     
     /**
@@ -75,25 +171,6 @@ class MetadataManager {
                 }
             }
             unset($size_data);  // Break reference
-        }
-        
-        return $metadata;
-    }
-    
-    /**
-     * Filter attachment metadata to ensure WebP is only served on frontend
-     * 
-     * Metadata is already set to WebP filenames during generation.
-     * This filter ensures it's only applied on frontend, not in admin.
-     * 
-     * @param array $metadata Attachment metadata
-     * @param int $attachment_id Attachment ID
-     * @return array Filtered metadata
-     */
-    public static function filterAttachmentMetadata($metadata, $attachment_id) {
-        // Only apply on frontend
-        if (is_admin()) {
-            return $metadata;
         }
         
         return $metadata;
