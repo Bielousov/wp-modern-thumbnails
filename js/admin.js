@@ -88,11 +88,6 @@ jQuery(function ($) {
         saveSettings();
     });
     
-    $(document).on('change', '#mmt_generate_avif', function () {
-        $(this).closest('.mmt-setting-card').find('.mmt-quality-control').toggle(this.checked);
-        saveSettings();
-    });
-    
     // Auto-save settings on checkbox change
     $(document).on('change', '#mmt-settings-form input[type="checkbox"]', function () {
         saveSettings();

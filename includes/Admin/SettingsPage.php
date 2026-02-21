@@ -132,37 +132,6 @@ class SettingsPage {
                                 <?php endif; ?>
                             </div>
                             
-                            <!-- Generate AVIF Format Setting -->
-                            <div class="mmt-setting-card">
-                                <div class="mmt-card-header">
-                                    <h3><?php esc_html_e('Generate AVIF Format', 'modern-media-thumbnails'); ?></h3>
-                                    <label class="mmt-switch mmt-switch-compact">
-                                        <input type="checkbox" 
-                                               id="mmt_generate_avif" 
-                                               name="settings[generate_avif]" 
-                                               value="1"
-                                               <?php checked($settings['generate_avif']); ?>>
-                                        <span class="toggle"></span>
-                                    </label>
-                                </div>
-                                <p class="mmt-card-description"><?php esc_html_e('Generate AVIF format for supported images (requires external library). AVIF provides superior compression compared to WebP.', 'modern-media-thumbnails'); ?></p>
-                                <?php if ($settings['generate_avif']): ?>
-                                    <div class="mmt-card-footer">
-                                        <div class="mmt-quality-control">
-                                            <label for="mmt_avif_quality"><?php esc_html_e('Quality', 'modern-media-thumbnails'); ?></label>
-                                            <input type="range" 
-                                                   id="mmt_avif_quality" 
-                                                   name="settings[avif_quality]" 
-                                                   min="0" 
-                                                   max="100" 
-                                                   value="<?php echo intval($settings['avif_quality']); ?>"
-                                                   class="mmt-quality-slider">
-                                            <span class="mmt-quality-value"><?php echo intval($settings['avif_quality']); ?></span>
-                                        </div>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-                            
                             <!-- Keep EXIF Data Setting -->
                             <div class="mmt-setting-card">
                                 <div class="mmt-card-header">
@@ -198,6 +167,25 @@ class SettingsPage {
                                         </label>
                                     </div>
                                 <?php endif; ?>
+                            </div>
+
+                            <!-- Generate AVIF Format Setting (Coming Soon) -->
+                            <div class="mmt-setting-card" style="opacity: 0.6; pointer-events: none;">
+                                <div class="mmt-card-header">
+                                    <h3><?php esc_html_e('Generate AVIF Format', 'modern-media-thumbnails'); ?></h3>
+                                    <label class="mmt-switch mmt-switch-compact">
+                                        <input type="checkbox" 
+                                               id="mmt_generate_avif" 
+                                               name="settings[generate_avif]" 
+                                               value="1"
+                                               disabled>
+                                        <span class="toggle"></span>
+                                    </label>
+                                </div>
+                                <p class="mmt-card-description"><?php esc_html_e('Generate AVIF format for supported images (requires external library). AVIF provides superior compression compared to WebP.', 'modern-media-thumbnails'); ?></p>
+                                <div class="mmt-card-footer">
+                                    <span class="mmt-badge-coming-soon"><?php esc_html_e('Coming Soon', 'modern-media-thumbnails'); ?></span>
+                                </div>
                             </div>
                             
                             <!-- Convert GIFs to Video Setting (Coming Soon) -->
@@ -531,32 +519,6 @@ class SettingsPage {
                         }
                     });
                     
-                    // Handle dynamic footer rendering for generate_avif
-                    $('#mmt_generate_avif').change(function() {
-                        var $card = $(this).closest('.mmt-setting-card');
-                        var $footer = $card.find('.mmt-card-footer');
-                        
-                        if (this.checked) {
-                            // Show the existing footer if it exists, or create it
-                            if ($footer.length === 0) {
-                                var footerHtml = '<div class="mmt-card-footer">' +
-                                    '<div class="mmt-quality-control">' +
-                                    '<label for="mmt_avif_quality"><?php esc_html_e('Quality', 'modern-media-thumbnails'); ?></label>' +
-                                    '<input type="range" id="mmt_avif_quality" name="settings[avif_quality]" min="0" max="100" value="<?php echo intval($settings['avif_quality']); ?>" class="mmt-quality-slider">' +
-                                    '<span class="mmt-quality-value"><?php echo intval($settings['avif_quality']); ?></span>' +
-                                    '</div>' +
-                                    '</div>';
-                                $card.append(footerHtml);
-                            } else {
-                                $footer.show();
-                            }
-                        } else {
-                            // Hide or remove the footer
-                            if ($footer.length > 0) {
-                                $footer.remove();
-                            }
-                        }
-                    });
                     
                     // Handle dynamic footer rendering for keep_exif
                     $('#mmt_keep_exif').change(function() {
