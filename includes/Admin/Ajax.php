@@ -58,6 +58,13 @@ class Ajax {
             $regenerated = self::regenerateAttachmentSize($attachment_id, $size_name);
             $file_path = get_attached_file($attachment_id);
             
+            // Update attachment metadata to include WebP file references
+            $updated_metadata = wp_get_attachment_metadata($attachment_id);
+            $updated_metadata = MetadataManager::updateMetadataWithWebP($attachment_id, $updated_metadata);
+            
+            // Save metadata to database
+            wp_update_attachment_metadata($attachment_id, $updated_metadata);
+            
             // Detect actual formats on disk
             $size_to_check = $size_name ?: 'original';
             $detected_formats = self::detectFormatsOnDisk($attachment_id, $size_to_check);
@@ -657,6 +664,13 @@ class Ajax {
             // Destroy imagick object after processing all sizes
             $imagick->destroy();
             
+            // Update attachment metadata to include WebP file references
+            $updated_metadata = wp_get_attachment_metadata($attachment_id);
+            $updated_metadata = MetadataManager::updateMetadataWithWebP($attachment_id, $updated_metadata);
+            
+            // Save metadata to database
+            wp_update_attachment_metadata($attachment_id, $updated_metadata);
+            
             wp_send_json_success([
                 'attachment_id' => $attachment_id,
                 'regenerated' => $regenerated,
@@ -843,6 +857,13 @@ class Ajax {
             // Destroy imagick object after processing
             $imagick->destroy();
             
+            // Update attachment metadata to include WebP file references
+            $updated_metadata = wp_get_attachment_metadata($attachment_id);
+            $updated_metadata = MetadataManager::updateMetadataWithWebP($attachment_id, $updated_metadata);
+            
+            // Save metadata to database
+            wp_update_attachment_metadata($attachment_id, $updated_metadata);
+            
             wp_send_json_success([
                 'attachment_id' => $attachment_id,
                 'regenerated' => $regenerated,
@@ -940,14 +961,27 @@ class Ajax {
             // Get updated metadata to send back the new thumbnail URLs
             $final_metadata = wp_get_attachment_metadata($post_id);
             $attachment_url_base = dirname(wp_get_attachment_url($post_id));
+            $attachment_file = get_attached_file($post_id);
+            $attachment_dir = dirname($attachment_file);
             
-            // Build thumbnail URLs with cache busting
+            // Build thumbnail URLs with cache busting, preferring WebP files
             $thumbnails = [];
             $cache_buster = gmdate('Ymdhis');
             if (!empty($final_metadata['sizes'])) {
                 foreach ($final_metadata['sizes'] as $size_name => $size_data) {
                     if (!empty($size_data['file'])) {
-                        $url = $attachment_url_base . '/' . $size_data['file'];
+                        // Check if WebP version exists for this size
+                        $size_file = $attachment_dir . '/' . $size_data['file'];
+                        $size_base = preg_replace('/\.[^\.]+$/', '', $size_file);
+                        $webp_file = $size_base . '.webp';
+                        
+                        // Prefer WebP if it exists and WebP generation is enabled
+                        if (file_exists($webp_file) && \ModernMediaThumbnails\FormatManager::shouldGenerateWebP()) {
+                            $url = $attachment_url_base . '/' . basename($webp_file);
+                        } else {
+                            $url = $attachment_url_base . '/' . $size_data['file'];
+                        }
+                        
                         // Add cache buster to ensure fresh fetch
                         $thumbnails[$size_name] = $url . '?v=' . $cache_buster;
                     }
