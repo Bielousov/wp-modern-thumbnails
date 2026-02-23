@@ -104,7 +104,7 @@ class SettingsPage {
                             <!-- WordPress Default Setting -->
                             <div class="mmt-setting-card">
                                 <div class="mmt-card-header">
-                                    <h3><?php esc_html_e('WordPress Default', 'modern-media-thumbnails'); ?></h3>
+                                    <h3><?php esc_html_e('Generate WordPress Default Thumbnails', 'modern-media-thumbnails'); ?></h3>
                                     <label class="mmt-switch mmt-switch-compact">
                                         <input type="checkbox" 
                                                id="mmt_keep_original" 
@@ -114,7 +114,7 @@ class SettingsPage {
                                         <span class="toggle"></span>
                                     </label>
                                 </div>
-                                <p class="mmt-card-description"><?php esc_html_e('Generate JPEG or PNG versions matching the original file format to ensure compatibility with legacy browsers.', 'modern-media-thumbnails'); ?></p>
+                                <p class="mmt-card-description"><?php esc_html_e('Generate JPEG or PNG versions matching the original file format to ensure compatibility with legacy browsers. Attachment metadata would still refer to WebP, intended to be used only for compatibility purposes.', 'modern-media-thumbnails'); ?></p>
                                 <?php if ($settings['keep_original']): ?>
                                     <div class="mmt-card-footer">
                                         <div class="mmt-quality-control">

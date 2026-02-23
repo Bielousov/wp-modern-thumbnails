@@ -84,12 +84,39 @@
 
                     // Update thumbnail preview with new URL from response
                     if (result.data && result.data.thumbnails) {
-                        // Get the first thumbnail URL (usually 'thumbnail' size)
-                        const firstThumbnailUrl = Object.values(result.data.thumbnails)[0];
-                        if (firstThumbnailUrl) {
+                        // Prefer post-thumbnail first (used by featured images), then thumbnail
+                        let selectedThumbnailUrl = null;
+                        
+                        if (result.data.thumbnails['post-thumbnail']) {
+                            selectedThumbnailUrl = result.data.thumbnails['post-thumbnail'];
+                        } else if (result.data.thumbnails['thumbnail']) {
+                            selectedThumbnailUrl = result.data.thumbnails['thumbnail'];
+                        } else {
+                            // Find the smallest size by looking for common small sizes
+                            const smallSizes = ['square', 'small', 'thumb'];
+                            for (const size of smallSizes) {
+                                if (result.data.thumbnails[size]) {
+                                    selectedThumbnailUrl = result.data.thumbnails[size];
+                                    break;
+                                }
+                            }
+                            // If still not found, use the first available
+                            if (!selectedThumbnailUrl) {
+                                selectedThumbnailUrl = Object.values(result.data.thumbnails)[0];
+                            }
+                        }
+                        
+                        if (selectedThumbnailUrl) {
                             const img = document.querySelector('.attachment-preview img');
                             if (img) {
-                                img.src = firstThumbnailUrl;
+                                img.src = selectedThumbnailUrl;
+                                // Remove responsive image attributes that might override our URL
+                                if (img.hasAttribute('srcset')) {
+                                    img.removeAttribute('srcset');
+                                }
+                                if (img.hasAttribute('sizes')) {
+                                    img.removeAttribute('sizes');
+                                }
                             }
                         }
                     }

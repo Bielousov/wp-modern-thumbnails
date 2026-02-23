@@ -174,12 +174,58 @@
                     
                     // Update thumbnail image with new WebP URL from response
                     if (result.data && result.data.thumbnails) {
-                        const firstThumbnailUrl = Object.values(result.data.thumbnails)[0];
-                        if (firstThumbnailUrl) {
+                        // Prefer post-thumbnail first (used by featured images), then thumbnail
+                        let selectedThumbnailUrl = null;
+                        
+                        if (result.data.thumbnails['post-thumbnail']) {
+                            selectedThumbnailUrl = result.data.thumbnails['post-thumbnail'];
+                        } else if (result.data.thumbnails['thumbnail']) {
+                            selectedThumbnailUrl = result.data.thumbnails['thumbnail'];
+                        } else {
+                            // Find the smallest size by looking for common small sizes
+                            const smallSizes = ['square', 'small', 'thumb'];
+                            for (const size of smallSizes) {
+                                if (result.data.thumbnails[size]) {
+                                    selectedThumbnailUrl = result.data.thumbnails[size];
+                                    break;
+                                }
+                            }
+                            // If still not found, use the first available
+                            if (!selectedThumbnailUrl) {
+                                selectedThumbnailUrl = Object.values(result.data.thumbnails)[0];
+                            }
+                        }
+                        
+                        if (selectedThumbnailUrl) {
                             const postElement = document.getElementById('post-' + imageId);
+                            
+                            // Update the media-icon image
                             const mediaIcon = postElement?.querySelector('.media-icon img');
                             if (mediaIcon) {
-                                mediaIcon.src = firstThumbnailUrl;
+                                mediaIcon.src = selectedThumbnailUrl;
+                                // Also update srcset and other attributes if they exist
+                                if (mediaIcon.hasAttribute('srcset')) {
+                                    mediaIcon.removeAttribute('srcset');
+                                }
+                                if (mediaIcon.hasAttribute('sizes')) {
+                                    mediaIcon.removeAttribute('sizes');
+                                }
+                            }
+                            
+                            // Also try to update any other img elements in the row
+                            const allImgs = postElement?.querySelectorAll('img');
+                            if (allImgs) {
+                                allImgs.forEach(img => {
+                                    if (img.closest('.media-icon')) {
+                                        img.src = selectedThumbnailUrl;
+                                        if (img.hasAttribute('srcset')) {
+                                            img.removeAttribute('srcset');
+                                        }
+                                        if (img.hasAttribute('sizes')) {
+                                            img.removeAttribute('sizes');
+                                        }
+                                    }
+                                });
                             }
                         }
                     }

@@ -941,12 +941,15 @@ class Ajax {
             $final_metadata = wp_get_attachment_metadata($post_id);
             $attachment_url_base = dirname(wp_get_attachment_url($post_id));
             
-            // Build thumbnail URLs
+            // Build thumbnail URLs with cache busting
             $thumbnails = [];
+            $cache_buster = gmdate('Ymdhis');
             if (!empty($final_metadata['sizes'])) {
                 foreach ($final_metadata['sizes'] as $size_name => $size_data) {
                     if (!empty($size_data['file'])) {
-                        $thumbnails[$size_name] = $attachment_url_base . '/' . $size_data['file'];
+                        $url = $attachment_url_base . '/' . $size_data['file'];
+                        // Add cache buster to ensure fresh fetch
+                        $thumbnails[$size_name] = $url . '?v=' . $cache_buster;
                     }
                 }
             }
