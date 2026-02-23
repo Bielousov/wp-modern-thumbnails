@@ -252,7 +252,7 @@ class SettingsPage {
                                 <td style="text-align: center;">
                                     <div class="mmt-resolution-box">
                                         <span class="mmt-resolution-box-label">
-                                            <?php esc_html_e('Full', 'modern-media-thumbnails'); ?><small>×</small><?php esc_html_e('Full', 'modern-media-thumbnails'); ?>
+                                            <?php esc_html_e('Full', 'modern-media-thumbnails'); ?>
                                         </span>
                                     </div>
                                 </td>
@@ -260,10 +260,8 @@ class SettingsPage {
                                     <strong><?php esc_html_e('Original Image', 'modern-media-thumbnails'); ?></strong>
                                 </td>
                                 <td>
-                                    <div class="mmt-formats-wrapper">
-                                        <?php if ($settings['keep_original']): ?>
-                                            <span class="mmt-format-badge mmt-format-original"><?php esc_html_e('Original (JPEG/PNG)', 'modern-media-thumbnails'); ?><span class="mmt-format-badge-quality"><?php echo intval($settings['original_quality']); ?>%</span></span>
-                                        <?php endif; ?>
+                                    <div class="mmt-formats-wrapper">                                        
+                                        <span class="mmt-format-badge mmt-format-original"><?php esc_html_e('Original (Unchanged)', 'modern-media-thumbnails'); ?></span>
                                     </div>
                                 </td>
                             </tr>
@@ -308,11 +306,11 @@ class SettingsPage {
                                             <div class="mmt-formats-wrapper">
                                                 <div class="mmt-formats">
                                                     <?php if ($settings['keep_original']): ?>
-                                                        <span class="mmt-format-badge mmt-format-original"><?php esc_html_e('Original (JPEG/PNG)', 'modern-media-thumbnails'); ?><span class="mmt-format-badge-quality"><?php echo intval($settings['original_quality']); ?>%</span></span>
+                                                        <span class="mmt-format-badge mmt-format-original"><?php esc_html_e('Original (JPEG/PNG)', 'modern-media-thumbnails'); ?></span>
                                                     <?php endif; ?>
-                                                    <span class="mmt-format-badge mmt-format-webp"><?php esc_html_e('WebP', 'modern-media-thumbnails'); ?><span class="mmt-format-badge-quality"><?php echo intval($settings['webp_quality']); ?>%</span></span>
+                                                    <span class="mmt-format-badge mmt-format-webp"><?php esc_html_e('WebP', 'modern-media-thumbnails'); ?></span>
                                                     <?php if ($settings['generate_avif']): ?>
-                                                        <span class="mmt-format-badge mmt-format-avif"><?php esc_html_e('AVIF', 'modern-media-thumbnails'); ?><span class="mmt-format-badge-quality"><?php echo intval($settings['avif_quality']); ?>%</span></span>
+                                                        <span class="mmt-format-badge mmt-format-avif"><?php esc_html_e('AVIF', 'modern-media-thumbnails'); ?></span>
                                                     <?php endif; ?>
                                                 </div>
                                                 <a href="#" class="mmt-regenerate-size" data-size="<?php echo esc_attr($size_name); ?>"><?php esc_html_e('Regenerate', 'modern-media-thumbnails'); ?></a>

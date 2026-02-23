@@ -1,0 +1,71 @@
+/**
+ * Media Modal Styles
+ * 
+ * Styles for the regenerate thumbnail button in the media insert modal.
+ */
+
+.mmt-regenerate-modal-btn {
+    margin: 0;
+    padding: 0 10px;
+    min-height: 28px;
+    height: 28px;
+    line-height: 26px;
+    white-space: nowrap;
+}
+
+.mmt-regenerate-modal-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.mmt-regenerate-modal-status {
+    display: none;
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-size: 12px;
+    line-height: 1.4;
+    margin-left: 8px;
+    vertical-align: middle;
+    display: inline-block;
+}
+
+.mmt-regenerate-modal-status.mmt-success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.mmt-regenerate-modal-status.mmt-error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.mmt-regenerate-modal-status.mmt-processing {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
+
+/* Ensure button is properly aligned with other buttons in .actions */
+.embed-media-settings .actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+}
+.embed-media-settings .actions .mmt-button-wrapper {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.embed-media-settings .actions .mmt-regenerate-modal-btn {
+    vertical-align: middle;
+}
+
+.embed-media-settings .actions .mmt-regenerate-modal-status {
+    vertical-align: middle;
+}
+
+
+

@@ -13,6 +13,7 @@ use ModernMediaThumbnails\Admin\SettingsPage;
 use ModernMediaThumbnails\Admin\MediaSettings;
 use ModernMediaThumbnails\Admin\BulkActions;
 use ModernMediaThumbnails\Admin\MediaDetails;
+use ModernMediaThumbnails\Admin\MediaModal;
 use ModernMediaThumbnails\Admin\Ajax;
 use ModernMediaThumbnails\Admin\Assets;
 use ModernMediaThumbnails\Admin\AdminNotices;
@@ -37,6 +38,7 @@ class Plugin {
         MediaSettings::register();
         BulkActions::register();
         MediaDetails::register();
+        MediaModal::register();
         Ajax::register();
         Assets::register();
         AdminNotices::register();

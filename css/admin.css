@@ -526,7 +526,7 @@
 }
 
 .mmt-format-original {
-    background-color: #0073aa;
+    background-color: #464749;
     color: white;
 }
 
@@ -538,17 +538,6 @@
 .mmt-format-avif {
     background-color: #9c27b0;
     color: white;
-}
-
-.mmt-format-badge-quality {
-    display: inline-block;
-    padding: 3px 5px;
-    opacity: 0.9;
-    background: rgba(255, 255, 255, .3);
-    border-radius: 1em;
-    font-size: 9px;
-    font-weight: 500;
-    line-height: 1;
 }
 
 /**

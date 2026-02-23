@@ -966,6 +966,89 @@ class Ajax {
     }
     
     /**
+     * Get attachment ID from image URL
+     * 
+     * @return void
+     */
+    public static function getAttachmentIdByUrl() {
+        check_ajax_referer('mmt_regenerate_nonce');
+        
+        if (!isset($_POST['image_url'])) {
+            wp_send_json_error('No image URL provided');
+        }
+        
+        $image_url = sanitize_url($_POST['image_url']);
+        
+        // Use WordPress built-in function to get attachment ID from URL
+        $attachment_id = attachment_url_to_postid($image_url);
+        
+        if (!$attachment_id) {
+            // Try alternative method: query the database directly
+            global $wpdb;
+            $attachment_id = $wpdb->get_var($wpdb->prepare(
+                "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'attachment' AND guid = %s",
+                $image_url
+            ));
+        }
+        
+        // If still not found, try to extract base filename and search for that
+        // This handles cases where WordPress shows scaled/thumbnail versions
+        if (!$attachment_id) {
+            // Extract filename from URL (e.g., solar-eclipse-intro from solar-eclipse-intro-1200x800.jpg)
+            $basename = pathinfo($image_url, PATHINFO_FILENAME);
+            
+            // Remove dimensions suffix (e.g., -1200x800 or -1920x1280)
+            $base_name_no_dims = preg_replace('/-\d+x\d+$/', '', $basename);
+            
+            // Search for attachment with this base name
+            global $wpdb;
+            $attachment_id = $wpdb->get_var($wpdb->prepare(
+                "SELECT ID FROM {$wpdb->posts} 
+                 WHERE post_type = 'attachment' 
+                 AND (guid LIKE %s OR post_title LIKE %s OR guid LIKE %s)",
+                '%' . $base_name_no_dims . '%',
+                '%' . $base_name_no_dims . '%',
+                '%' . $basename . '%'
+            ));
+        }
+        
+        // Try original file format if webp/avif (remove format suffix)
+        if (!$attachment_id && preg_match('/\.(webp|avif)$/i', $image_url)) {
+            // Try common formats and remove dimensions
+            $basename = pathinfo($image_url, PATHINFO_FILENAME);
+            $base_name_no_dims = preg_replace('/-\d+x\d+\.webp$|-\d+x\d+\.avif$/i', '', $basename);
+            
+            foreach (['.jpg', '.jpeg', '.png', '.gif'] as $ext) {
+                // Try with dimensions removed
+                $original_url = preg_replace('/\/([^\/]+)\.(webp|avif)$/i', '/' . $base_name_no_dims . $ext, $image_url);
+                $attachment_id = attachment_url_to_postid($original_url);
+                if ($attachment_id) {
+                    break;
+                }
+                
+                // Also try database search
+                global $wpdb;
+                $attachment_id = $wpdb->get_var($wpdb->prepare(
+                    "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'attachment' AND guid LIKE %s",
+                    '%' . $base_name_no_dims . $ext
+                ));
+                if ($attachment_id) {
+                    break;
+                }
+            }
+        }
+        
+        if (!$attachment_id) {
+            wp_send_json_error('Could not find attachment for image URL: ' . $image_url);
+        }
+        
+        wp_send_json_success([
+            'attachment_id' => intval($attachment_id),
+            'message' => 'Attachment ID found'
+        ]);
+    }
+
+    /**
      * Register AJAX handlers
      * 
      * @return void
@@ -974,6 +1057,7 @@ class Ajax {
         add_action('wp_ajax_mmt_regenerate_all', [self::class, 'regenerateAll']);
         add_action('wp_ajax_mmt_regenerate_size', [self::class, 'regenerateSize']);
         add_action('wp_ajax_mmt_regenerate_single', [self::class, 'regenerateSingle']);
+        add_action('wp_ajax_mmt_get_attachment_id_by_url', [self::class, 'getAttachmentIdByUrl']);
         add_action('wp_ajax_mmt_save_settings', [self::class, 'saveSettings']);
         add_action('wp_ajax_mmt_get_media_count', [self::class, 'getMediaCount']);
         add_action('wp_ajax_mmt_get_original_size', [self::class, 'getOriginalSize']);

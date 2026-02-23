@@ -109,7 +109,7 @@
             '<div class="mmt-job-header">' +
             '<div>' +
             '<h3 class="mmt-job-title">' + title + '</h3>' +
-            '<p class="mmt-job-subtitle">Processing your media library...</p>' +
+            '<p class="mmt-job-subtitle">Keep this window open while processing your media files.</p>' +
             '</div>' +
             '<button class="mmt-job-stop">Stop</button>' +
             '</div>' +
