@@ -208,21 +208,6 @@ class SettingsPage {
                             </div>
                         </div>
                     </form>
-                    
-                    <!-- Information Box -->
-                    <h2><?php esc_html_e('About This Plugin', 'modern-media-thumbnails'); ?></h2>
-                    <div class="card">
-                        <p>
-                            <?php esc_html_e('This plugin automatically generates WebP versions of all thumbnails defined in your theme, using the Imagick library for fast and efficient image processing.', 'modern-media-thumbnails'); ?>
-                        </p>
-                        <h3><?php esc_html_e('Features:', 'modern-media-thumbnails'); ?></h3>
-                        <ul>
-                            <li><?php esc_html_e('Automatic WebP generation on image upload', 'modern-media-thumbnails'); ?></li>
-                            <li><?php esc_html_e('Respects theme-defined crop settings', 'modern-media-thumbnails'); ?></li>
-                            <li><?php esc_html_e('High-performance Imagick-based processing', 'modern-media-thumbnails'); ?></li>
-                            <li><?php esc_html_e('Complete theme image size detection', 'modern-media-thumbnails'); ?></li>
-                        </ul>
-                    </div>
                 </div>
             <?php endif; ?>
             
@@ -411,6 +396,39 @@ class SettingsPage {
                     </table>
                 </div>
             <?php endif; ?>
+            
+            <!-- Global Footer: About This Plugin -->
+            <div class="mmt-about-footer">
+                <h2><?php esc_html_e('About Modern Media Thumbnails', 'modern-media-thumbnails'); ?></h2>
+                <div class="card">
+                    <!-- Logo Icon -->
+                    <div class="mmt-about-logo">
+                        <?php
+                        $logo_path = dirname(dirname(dirname(__FILE__))) . '/images/logo.svg';
+                        if (file_exists($logo_path)) {
+                            include $logo_path;
+                        }
+                        ?>
+                    </div>
+                    <p>
+                        <?php esc_html_e('Unlike other thumbnail plugins that simply generate additional image files, Modern Media Thumbnails works smarter. It automatically replaces generated JPG/PNG thumbnails with optimized WebP format versions—significantly reducing file sizes without any loss of visual quality.', 'modern-media-thumbnails'); ?>
+                    </p>
+                    
+                    <h3><?php esc_html_e('Key Benefits:', 'modern-media-thumbnails'); ?></h3>
+                    <ul>
+                        <li><strong><?php esc_html_e('Faster Page Loading', 'modern-media-thumbnails'); ?>:</strong> <?php esc_html_e('WebP files are 25-35% smaller than JPEG, resulting in faster image downloads and improved page performance.', 'modern-media-thumbnails'); ?></li>
+                        <li><strong><?php esc_html_e('Save Server Space', 'modern-media-thumbnails'); ?>:</strong> <?php esc_html_e('Thumbnail files consume significantly less disk storage, reducing hosting costs and allowing you to store more media files.', 'modern-media-thumbnails'); ?></li>
+                        <li><strong><?php esc_html_e('Automatic Processing', 'modern-media-thumbnails'); ?>:</strong> <?php esc_html_e('WebP versions are generated automatically on image upload for all theme-defined thumbnail sizes.', 'modern-media-thumbnails'); ?></li>
+                        <li><strong><?php esc_html_e('Source Files Untouched', 'modern-media-thumbnails'); ?>:</strong> <?php esc_html_e('The original uploaded image file is never modified—only automatically generated thumbnails are optimized.', 'modern-media-thumbnails'); ?></li>
+                        <li><strong><?php esc_html_e('Theme-Aware', 'modern-media-thumbnails'); ?>:</strong> <?php esc_html_e('Respects theme-defined crop settings for all image sizes, ensuring proper aspect ratios and alignments.', 'modern-media-thumbnails'); ?></li>
+                        <li><strong><?php esc_html_e('High-Performance Processing', 'modern-media-thumbnails'); ?>:</strong> <?php esc_html_e('Powered by Imagick library for fast, efficient image processing.', 'modern-media-thumbnails'); ?></li>
+                    </ul>
+                    
+                    <p style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #eee;">
+                        <em><?php esc_html_e('This plugin is ideal for websites with large media libraries that want to improve performance and reduce storage costs without compromising image quality.', 'modern-media-thumbnails'); ?></em>
+                    </p>
+                </div>
+            </div>
         </div>
         <script type="text/javascript">
             console.log('MMT Settings page loaded');
