@@ -18,14 +18,31 @@ class MetadataManager {
      * @return void
      */
     public static function register() {
-        // Hook into metadata generation to ensure dimensions are preserved
+        // Fix metadata early in generation process (priority 5)
         add_filter('wp_generate_attachment_metadata', [self::class, 'ensureValidMetadata'], 5, 2);
         
-        // Hook into metadata SAVE to ensure WebP metadata is persisted
-        add_action('wp_update_attachment_metadata', [self::class, 'onMetadataUpdate'], 10, 2);
-        
-        // Also hook into native thumbnail generation
+        // Process WebP generation after metadata is fixed (priority 10)
         add_filter('wp_generate_attachment_metadata', [self::class, 'interceptGeneratedMetadata'], 10, 2);
+        
+        // Save corrected metadata to database (priority 20, after all other processing)
+        add_filter('wp_generate_attachment_metadata', [self::class, 'saveMetadataToDatabaseAfterFix'], 20, 2);
+    }
+    
+    /**
+     * Save fixed and processed metadata directly to database
+     * 
+     * By saving in the generation hook, we ensure all future retrievals get correct data.
+     * Runs at priority 20, after dimension fixes and WebP generation.
+     * 
+     * @param array $metadata Fixed metadata
+     * @param int $attachment_id Attachment ID
+     * @return array Unchanged metadata (just triggers the save)
+     */
+    public static function saveMetadataToDatabaseAfterFix($metadata, $attachment_id) {
+        if ($metadata && is_array($metadata)) {
+            update_post_meta($attachment_id, '_wp_attachment_metadata', $metadata);
+        }
+        return $metadata;
     }
     
     /**
