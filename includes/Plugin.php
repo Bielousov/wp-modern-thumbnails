@@ -9,6 +9,7 @@ namespace ModernMediaThumbnails;
 
 use ModernMediaThumbnails\WordPress\UploadHooks;
 use ModernMediaThumbnails\WordPress\MetadataManager;
+use ModernMediaThumbnails\WordPress\DeletionHandler;
 use ModernMediaThumbnails\Admin\SettingsPage;
 use ModernMediaThumbnails\Admin\MediaSettings;
 use ModernMediaThumbnails\Admin\BulkActions;
@@ -32,6 +33,7 @@ class Plugin {
         // Register WordPress hooks
         UploadHooks::register();
         MetadataManager::register();
+        DeletionHandler::register();
         
         // Register admin components
         add_action('admin_menu', [SettingsPage::class, 'registerMenu']);

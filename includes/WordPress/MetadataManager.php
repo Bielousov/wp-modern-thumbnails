@@ -18,12 +18,73 @@ class MetadataManager {
      * @return void
      */
     public static function register() {
+        // Hook into metadata generation to ensure dimensions are preserved
+        add_filter('wp_generate_attachment_metadata', [self::class, 'ensureValidMetadata'], 5, 2);
+        
         // Hook into metadata SAVE to ensure WebP metadata is persisted
-        // wp_update_attachment_metadata is the action when metadata is saved to database
         add_action('wp_update_attachment_metadata', [self::class, 'onMetadataUpdate'], 10, 2);
         
         // Also hook into native thumbnail generation
         add_filter('wp_generate_attachment_metadata', [self::class, 'interceptGeneratedMetadata'], 10, 2);
+    }
+    
+    /**
+     * Ensure metadata contains valid dimensions
+     * 
+     * Fixes broken metadata (1x1px) by reading actual image dimensions.
+     * Runs early (priority 5) before other hooks.
+     * 
+     * @param array $metadata Generated metadata
+     * @param int $attachment_id Attachment ID
+     * @return array Metadata with valid dimensions
+     */
+    public static function ensureValidMetadata($metadata, $attachment_id) {
+        // If metadata is empty or dimensions are invalid (0, 1, or missing)
+        $width = intval($metadata['width'] ?? 0);
+        $height = intval($metadata['height'] ?? 0);
+        
+        if ($width <= 1 || $height <= 1) {
+            // Try to get real dimensions from the actual image file
+            $real_dims = self::getImageDimensionsFromFile($attachment_id);
+            if ($real_dims) {
+                $metadata['width'] = $real_dims['width'];
+                $metadata['height'] = $real_dims['height'];
+            }
+        }
+        
+        return $metadata;
+    }
+    
+    /**
+     * Get actual image dimensions from file using Imagick
+     * 
+     * @param int $attachment_id Attachment ID
+     * @return array|false Array with 'width' and 'height', or false if unable to read
+     */
+    private static function getImageDimensionsFromFile($attachment_id) {
+        $file = get_attached_file($attachment_id);
+        if (!$file || !file_exists($file)) {
+            return false;
+        }
+        
+        try {
+            $imagick = new \Imagick($file);
+            $width = $imagick->getImageWidth();
+            $height = $imagick->getImageHeight();
+            $imagick->destroy();
+            
+            if ($width > 0 && $height > 0) {
+                return ['width' => $width, 'height' => $height];
+            }
+        } catch (\Exception $e) {
+            // Fall back to getimagesize if Imagick fails
+            $size = @getimagesize($file);
+            if ($size && isset($size[0], $size[1]) && $size[0] > 0 && $size[1] > 0) {
+                return ['width' => $size[0], 'height' => $size[1]];
+            }
+        }
+        
+        return false;
     }
     
     /**
@@ -121,12 +182,12 @@ class MetadataManager {
     /**
      * Update attachment metadata with WebP file references after generation
      * 
-     * Updates metadata to reference only WebP files for serving on frontend.
+     * Updates metadata to reference WebP files while preserving dimensions.
      * Original files are kept on disk but not referenced in metadata.
      * 
      * @param int $attachment_id Attachment ID
      * @param array $metadata Current attachment metadata
-     * @return array Updated metadata with WebP files only
+     * @return array Updated metadata with WebP files and preserved dimensions
      */
     public static function updateMetadataWithWebP($attachment_id, $metadata) {
         if (empty($metadata) || !is_array($metadata)) {
@@ -143,6 +204,17 @@ class MetadataManager {
             return $metadata;
         }
         
+        // Ensure main image dimensions are valid
+        $width = intval($metadata['width'] ?? 0);
+        $height = intval($metadata['height'] ?? 0);
+        if ($width <= 1 || $height <= 1) {
+            $real_dims = self::getImageDimensionsFromFile($attachment_id);
+            if ($real_dims) {
+                $metadata['width'] = $real_dims['width'];
+                $metadata['height'] = $real_dims['height'];
+            }
+        }
+        
         $attachment_dir = dirname($attachment_file);
         $attachment_base = preg_replace('/\.[^\.]+$/', '', $attachment_file);
         
@@ -152,12 +224,16 @@ class MetadataManager {
             $metadata['file'] = basename($main_webp_file);
         }
         
-        // Update sizes metadata to use WebP only
+        // Update sizes metadata to use WebP only while preserving dimensions
         if (!empty($metadata['sizes']) && is_array($metadata['sizes'])) {
             foreach ($metadata['sizes'] as $size_name => &$size_data) {
                 if (!is_array($size_data) || empty($size_data['file'])) {
                     continue;
                 }
+                
+                // Preserve original dimensions
+                $size_width = intval($size_data['width'] ?? 0);
+                $size_height = intval($size_data['height'] ?? 0);
                 
                 // Get the size file path
                 $size_file = $attachment_dir . '/' . $size_data['file'];
@@ -168,6 +244,9 @@ class MetadataManager {
                 if (file_exists($webp_file)) {
                     $size_data['file'] = basename($webp_file);
                     $size_data['mime-type'] = 'image/webp';
+                    // Ensure dimensions are preserved
+                    $size_data['width'] = $size_width;
+                    $size_data['height'] = $size_height;
                 }
             }
             unset($size_data);  // Break reference
