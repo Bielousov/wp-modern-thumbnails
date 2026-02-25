@@ -132,12 +132,12 @@ class MediaDetails {
         ?>
         <div class="mmt-media-details-action">
             <button type="button" id="mmt-regenerate-btn" class="button button-secondary mmt-regenerate-button">
-                <?php esc_html_e('Regenerate Thumbnails', 'modern-media-thumbnails'); ?>
+                <?php esc_html_e( 'Regenerate Thumbnails', 'modern-thumbnails' ); ?>
             </button>
             <span id="mmt-regenerate-status" class="mmt-regenerate-status" style="display: none;"></span>
             <?php if (!empty($formats)): ?>
                 <span class="mmt-formats-list">
-                    <?php esc_html_e('Enabled Formats:', 'modern-media-thumbnails'); ?>
+                    <?php esc_html_e( 'Enabled Formats:', 'modern-thumbnails' ); ?>
                     <span class="mmt-formats-items"><?php echo esc_html($formats_text); ?></span>
                 </span>
             <?php endif; ?>

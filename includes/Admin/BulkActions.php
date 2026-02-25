@@ -28,7 +28,7 @@ class BulkActions {
      * @return array Modified bulk actions
      */
     public static function registerBulkAction($actions) {
-        $actions['mmt_regenerate_thumbnails'] = __('Regenerate Thumbnails', 'modern-media-thumbnails');
+        $actions['mmt_regenerate_thumbnails'] = __( 'Regenerate Thumbnails', 'modern-thumbnails' );
         return $actions;
     }
     

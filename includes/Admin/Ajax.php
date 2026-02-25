@@ -953,7 +953,7 @@ class Ajax {
                 $message = sprintf(
                     'Successfully regenerated %d thumbnail %s in %s',
                     $size_count,
-                    _n('size', 'sizes', $size_count, 'modern-media-thumbnails'),
+                    _n( 'size', 'sizes', $size_count, 'modern-thumbnails' ),
                     $formats_text
                 );
             } else {

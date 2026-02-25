@@ -1,4 +1,4 @@
-# Modern Media Thumbnails - Refactored Structure
+# Modern Thumbnails - Refactored Structure
 
 ## Overview
 

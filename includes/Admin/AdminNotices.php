@@ -30,8 +30,8 @@ class AdminNotices {
             ?>
             <div class="notice notice-error is-dismissible">
                 <p>
-                    <strong><?php esc_html_e('Modern Media Thumbnails:', 'modern-media-thumbnails'); ?></strong>
-                    <?php esc_html_e('The Imagick PHP extension is not installed. Please contact your hosting provider to enable it.', 'modern-media-thumbnails'); ?>
+                    <strong><?php esc_html_e( 'Modern Thumbnails:', 'modern-thumbnails' ); ?></strong>
+                    <?php esc_html_e( 'The Imagick PHP extension is not installed. Please contact your hosting provider to enable it.', 'modern-thumbnails' ); ?>
                 </p>
             </div>
             <?php
@@ -41,8 +41,8 @@ class AdminNotices {
             ?>
             <div class="notice notice-warning is-dismissible">
                 <p>
-                    <strong><?php esc_html_e('Modern Media Thumbnails:', 'modern-media-thumbnails'); ?></strong>
-                    <?php esc_html_e('WebP format is not supported by your Imagick installation. Please update Imagick and ImageMagick library.', 'modern-media-thumbnails'); ?>
+                    <strong><?php esc_html_e( 'Modern Thumbnails:', 'modern-thumbnails' ); ?></strong>
+                    <?php esc_html_e( 'WebP format is not supported by your Imagick installation. Please update Imagick and ImageMagick library.', 'modern-thumbnails' ); ?>
                 </p>
             </div>
             <?php
@@ -54,9 +54,9 @@ class AdminNotices {
             ?>
             <div class="notice notice-info is-dismissible" data-notice="mmt_nginx_notice">
                 <p>
-                    <strong><?php esc_html_e('Modern Media Thumbnails:', 'modern-media-thumbnails'); ?></strong>
-                    <?php esc_html_e('Your server is running nginx, but the image format content negotiation configuration has not been detected. This is optional but recommended for optimal performance.', 'modern-media-thumbnails'); ?>
-                    <a href="<?php echo esc_url($settings_url); ?>"><?php esc_html_e('View Configuration Guide', 'modern-media-thumbnails'); ?></a>
+                    <strong><?php esc_html_e( 'Modern Thumbnails:', 'modern-thumbnails' ); ?></strong>
+                    <?php esc_html_e( 'Your server is running nginx, but the image format content negotiation configuration has not been detected. This is optional but recommended for optimal performance.', 'modern-thumbnails' ); ?>
+                    <a href="<?php echo esc_url( $settings_url ); ?>"><?php esc_html_e( 'View Configuration Guide', 'modern-thumbnails' ); ?></a>
                 </p>
             </div>
             <script>
@@ -83,9 +83,9 @@ class AdminNotices {
             ?>
             <div class="notice notice-info is-dismissible" data-notice="mmt_apache_notice">
                 <p>
-                    <strong><?php esc_html_e('Modern Media Thumbnails:', 'modern-media-thumbnails'); ?></strong>
-                    <?php esc_html_e('Your server is running Apache with mod_rewrite enabled, but the image format content negotiation configuration has not been detected. This is optional but recommended for optimal performance.', 'modern-media-thumbnails'); ?>
-                    <a href="<?php echo esc_url($settings_url); ?>"><?php esc_html_e('View Configuration Guide', 'modern-media-thumbnails'); ?></a>
+                    <strong><?php esc_html_e( 'Modern Thumbnails:', 'modern-thumbnails' ); ?></strong>
+                    <?php esc_html_e( 'Your server is running Apache with mod_rewrite enabled, but the image format content negotiation configuration has not been detected. This is optional but recommended for optimal performance.', 'modern-thumbnails' ); ?>
+                    <a href="<?php echo esc_url( $settings_url ); ?>"><?php esc_html_e( 'View Configuration Guide', 'modern-thumbnails' ); ?></a>
                 </p>
             </div>
             <script>
@@ -128,7 +128,7 @@ class AdminNotices {
                 <p>
                     <?php
                     printf(
-                        esc_html__('Successfully regenerated thumbnails for %d of %d image(s).', 'modern-media-thumbnails'),
+                        esc_html__( 'Successfully regenerated thumbnails for %d of %d image(s).', 'modern-thumbnails' ),
                         $regenerated,
                         $total
                     );
@@ -144,7 +144,7 @@ class AdminNotices {
                 <p>
                     <?php
                     printf(
-                        esc_html__('Failed to regenerate thumbnails for %d image(s). They may not be valid image files.', 'modern-media-thumbnails'),
+                        esc_html__( 'Failed to regenerate thumbnails for %d image(s). They may not be valid image files.', 'modern-thumbnails' ),
                         $errors
                     );
                     ?>

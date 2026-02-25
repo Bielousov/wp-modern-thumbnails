@@ -116,9 +116,9 @@ class Assets {
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'pluginUrl' => $plugin_url,
             'i18n' => [
-                'regenerating' => __('Regenerating...', 'modern-media-thumbnails'),
-                'success' => __('Regeneration completed!', 'modern-media-thumbnails'),
-                'error' => __('Error during regeneration', 'modern-media-thumbnails'),
+                'regenerating' => __( 'Regenerating...', 'modern-thumbnails' ),
+                'success' => __( 'Regeneration completed!', 'modern-thumbnails' ),
+                'error' => __( 'Error during regeneration', 'modern-thumbnails' ),
             ]
         ]);
         

@@ -1,4 +1,4 @@
-# Apache Configuration for Modern Media Thumbnails
+# Apache Configuration for Modern Thumbnails
 # Place this in your root .htaccess file
 # 
 # This configuration enables content negotiation to serve optimized image formats

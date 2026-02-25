@@ -1,4 +1,4 @@
-# Modern Media Thumbnails - Refactoring Summary
+# Modern Thumbnails - Refactoring Summary
 
 ## Objective
 Refactor the plugin to use global format settings instead of per-image-size format selection. This simplifies the admin interface and standardizes image processing across all thumbnail sizes.

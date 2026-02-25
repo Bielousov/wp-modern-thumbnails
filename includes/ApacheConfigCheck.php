@@ -131,7 +131,7 @@ class ApacheConfigCheck {
      */
     public static function getConfigurationSnippet() {
         return <<<'APACHE'
-# BEGIN Modern Media Thumbnails
+# BEGIN Modern Thumbnails
 # This section enables automatic serving of optimized AVIF and WebP image formats
 # based on browser support. Much smaller file sizes = faster pages.
 
@@ -163,7 +163,7 @@ class ApacheConfigCheck {
     </IfModule>
 </FilesMatch>
 
-# END Modern Media Thumbnails
+# END Modern Thumbnails
 APACHE;
     }
 }

@@ -209,7 +209,7 @@ add_filter( 'wp_generate_attachment_metadata', [ $class, 'method' ], 10, 2 );
 ```
 
 ✅ **Hook Naming Conventions**
-- Prefix hooks with plugin slug: `mmt_` (Modern Media Thumbnails)
+- Prefix hooks with plugin slug: `mmt_` (Modern Thumbnails)
 - Use lowercase with underscores: `mmt_before_regeneration`
 - Clear action vs filter distinction
 

@@ -29,7 +29,7 @@ class MediaSettings {
         // Add settings section to Media options page
         add_settings_section(
             'mmt_image_formats',
-            __('Image Formats', 'modern-media-thumbnails'),
+            __( 'Image Formats', 'modern-thumbnails' ),
             [self::class, 'renderSection'],
             'media'
         );
@@ -37,7 +37,7 @@ class MediaSettings {
         // Add settings field
         add_settings_field(
             'mmt_image_formats_info',
-            __('Enabled Formats', 'modern-media-thumbnails'),
+            __( 'Enabled Formats', 'modern-thumbnails' ),
             [self::class, 'renderField'],
             'media',
             'mmt_image_formats'
@@ -50,7 +50,7 @@ class MediaSettings {
      * @return void
      */
     public static function renderSection() {
-        echo '<p>' . esc_html__('Configure which image formats are automatically generated for uploaded images.', 'modern-media-thumbnails') . '</p>';
+        echo '<p>' . esc_html__( 'Configure which image formats are automatically generated for uploaded images.', 'modern-thumbnails' ) . '</p>';
     }
     
     /**
@@ -67,7 +67,7 @@ class MediaSettings {
         // WebP is always enabled
         $enabled_formats[] = sprintf(
             '<span class="mmt-media-format mmt-format-webp">%s <span class="mmt-quality-badge">%d%%</span></span>',
-            esc_html__('WebP', 'modern-media-thumbnails'),
+            esc_html__( 'WebP', 'modern-thumbnails' ),
             intval($settings['webp_quality'])
         );
         
@@ -75,7 +75,7 @@ class MediaSettings {
         if ($settings['keep_original']) {
             $enabled_formats[] = sprintf(
                 '<span class="mmt-media-format mmt-format-original">%s <span class="mmt-quality-badge">%d%%</span></span>',
-                esc_html__('Original (JPEG/PNG)', 'modern-media-thumbnails'),
+                esc_html__( 'Original (JPEG/PNG)', 'modern-thumbnails' ),
                 intval($settings['original_quality'])
             );
         }
@@ -84,7 +84,7 @@ class MediaSettings {
         if ($settings['generate_avif']) {
             $enabled_formats[] = sprintf(
                 '<span class="mmt-media-format mmt-format-avif">%s <span class="mmt-quality-badge">%d%%</span></span>',
-                esc_html__('AVIF', 'modern-media-thumbnails'),
+                esc_html__( 'AVIF', 'modern-thumbnails' ),
                 intval($settings['avif_quality'])
             );
         }
@@ -100,7 +100,7 @@ class MediaSettings {
         printf(
             '<a href="%s" class="button button-secondary">%s</a>',
             esc_url($settings_url),
-            esc_html__('Configure Image Format Settings', 'modern-media-thumbnails')
+            esc_html__( 'Configure Image Format Settings', 'modern-thumbnails' )
         );
         echo '</p>';
     }

@@ -83,7 +83,7 @@
             notice.className = 'notice notice-info is-dismissible';
             notice.innerHTML = `
                 <p>
-                    <strong>Modern Media Thumbnails:</strong> 
+                    <strong>Modern Thumbnails:</strong> 
                     <span id="mmt-progress">Processing ${checkedBoxes.length} image(s)...</span>
                 </p>
             `;
