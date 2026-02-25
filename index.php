@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) {
 // Define plugin constants
 define('MMT_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('MMT_PLUGIN_URL', plugin_dir_url(__FILE__));
-define('MMT_PLUGIN_VERSION', '1.0.0');
+define('MMT_PLUGIN_VERSION', '0.0.1');
 
 // Autoloader for plugin classes
 spl_autoload_register(function ($class) {

@@ -50,7 +50,7 @@ class MediaDetails {
         
         // Enqueue the media details script
         $plugin_url = defined('MMT_PLUGIN_URL') ? MMT_PLUGIN_URL : plugin_dir_url(dirname(dirname(dirname(__FILE__))));
-        $plugin_version = defined('MMT_PLUGIN_VERSION') ? MMT_PLUGIN_VERSION : '1.0.0';
+        $plugin_version = defined('MMT_PLUGIN_VERSION') ? MMT_PLUGIN_VERSION : '0.0.1';
         
         wp_enqueue_script(
             'mmt-media-details',

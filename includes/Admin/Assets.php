@@ -40,7 +40,7 @@ class Assets {
         
         // Use the constant defined in the main plugin file
         $plugin_url = defined('MMT_PLUGIN_URL') ? MMT_PLUGIN_URL : plugin_dir_url(dirname(dirname(dirname(__FILE__))));
-        $plugin_version = defined('MMT_PLUGIN_VERSION') ? MMT_PLUGIN_VERSION : '1.0.0';
+        $plugin_version = defined('MMT_PLUGIN_VERSION') ? MMT_PLUGIN_VERSION : '0.0.1';
         
         // Always enqueue the admin CSS for media formats display
         wp_enqueue_style(

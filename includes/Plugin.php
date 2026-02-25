@@ -1,8 +1,11 @@
 <?php
 /**
- * Modern Media Thumbnails Plugin Core
- * 
+ * Modern Thumbnails Plugin Core
+ *
  * Main plugin class that bootstraps all components.
+ *
+ * @package Modern_Thumbnails
+ * @since   0.0.1
  */
 
 namespace ModernMediaThumbnails;

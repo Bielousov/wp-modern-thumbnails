@@ -296,6 +296,8 @@ class Ajax {
             'keep_original' => (bool)($settings['keep_original'] ?? false),
             'generate_avif' => (bool)($settings['generate_avif'] ?? false),
             'convert_gif' => (bool)($settings['convert_gif'] ?? false),
+            'keep_exif' => (bool)($settings['keep_exif'] ?? true),
+            'keep_exif_thumbnails' => (bool)($settings['keep_exif_thumbnails'] ?? false),
             'webp_quality' => intval($settings['webp_quality'] ?? 80),
             'original_quality' => intval($settings['original_quality'] ?? 85),
             'avif_quality' => intval($settings['avif_quality'] ?? 75),
