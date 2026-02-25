@@ -163,7 +163,7 @@ If you previously used a development version:
 
 ## 🐛 Known Limitations
 
-### Current Release (1.0.0)
+### Current Release (0.0.1)
 - **AVIF generation:** Coming in a future release (UI marked as "Coming Soon")
 - **GIF conversion:** Coming in a future release (UI marked as "Coming Soon")
 - **Scheduled regeneration:** Must be triggered manually (bulk actions or individual regenerate button)
@@ -271,7 +271,7 @@ Before adding configuration to your nginx or Apache setup:
 
 ## 📊 Version History
 
-### Version 1.0.0 (February 2026)
+### Version 0.0.1 (February 2026)
 - Initial release
 - WebP thumbnail generation
 - Settings and quality control
@@ -294,4 +294,4 @@ Thank you for using Modern Thumbnails! We hope it helps improve your site's perf
 
 ---
 
-**Modern Thumbnails 1.0.0** — Making web images faster, one thumbnail at a time.
+**Modern Thumbnails 0.0.1** — Making web images faster, one thumbnail at a time.

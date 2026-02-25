@@ -135,7 +135,7 @@ The plugin provides hooks and filters for developers:
 
 ## Limitations
 
-### Current Version (1.0.0)
+### Current Version (0.0.1)
 - AVIF generation (marked "Coming Soon")
 - GIF to video conversion (marked "Coming Soon")
 - Manual regeneration trigger (bulk actions and individual buttons)
@@ -150,7 +150,7 @@ The plugin provides hooks and filters for developers:
 
 ## Version History
 
-### 1.0.0 (February 2026)
+### 0.0.1 (February 2026)
 - Initial release
 - WebP thumbnail generation
 - Settings and quality control
