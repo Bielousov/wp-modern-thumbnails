@@ -117,21 +117,19 @@ class SettingsPage {
                                     </label>
                                 </div>
                                 <p class="mmt-card-description"><?php esc_html_e( 'Generate JPEG or PNG versions matching the original file format to ensure compatibility with legacy browsers. Attachment metadata would still refer to WebP, intended to be used only for compatibility purposes.', 'modern-thumbnails' ); ?></p>
-                                <?php if ($settings['keep_original']): ?>
-                                    <div class="mmt-card-footer">
-                                        <div class="mmt-quality-control">
-                                            <label for="mmt_original_quality"><?php esc_html_e( 'Quality', 'modern-thumbnails' ); ?></label>
-                                            <input type="range" 
-                                                   id="mmt_original_quality" 
-                                                   name="settings[original_quality]" 
-                                                   min="0" 
-                                                   max="100" 
-                                                   value="<?php echo intval($settings['original_quality']); ?>"
-                                                   class="mmt-quality-slider">
-                                            <span class="mmt-quality-value"><?php echo intval($settings['original_quality']); ?></span>
-                                        </div>
+                                <div class="mmt-card-footer" <?php if ( ! $settings['keep_original'] ) echo 'style="display: none;"'; ?>>
+                                    <div class="mmt-quality-control">
+                                        <label for="mmt_original_quality"><?php esc_html_e( 'Quality', 'modern-thumbnails' ); ?></label>
+                                        <input type="range" 
+                                               id="mmt_original_quality" 
+                                               name="settings[original_quality]" 
+                                               min="0" 
+                                               max="100" 
+                                               value="<?php echo intval( $settings['original_quality'] ); ?>"
+                                               class="mmt-quality-slider">
+                                        <span class="mmt-quality-value"><?php echo intval( $settings['original_quality'] ); ?></span>
                                     </div>
-                                <?php endif; ?>
+                                </div>
                             </div>
                             
                             <!-- Keep EXIF Data Setting -->
@@ -148,21 +146,21 @@ class SettingsPage {
                                     </label>
                                 </div>
                                 <p class="mmt-card-description"><?php esc_html_e( 'Keep EXIF metadata in generated thumbnails for better image quality and copyright information. Disable to save disk space.', 'modern-thumbnails' ); ?></p>
-                                <?php if ($settings['keep_exif'] && current_theme_supports('post-thumbnails')): ?>
-                                    <div class="mmt-card-footer">
+                                <?php if ( current_theme_supports( 'post-thumbnails' ) ): ?>
+                                    <div class="mmt-card-footer" <?php if ( ! $settings['keep_exif'] ) echo 'style="display: none;"'; ?>>
                                         <label class="mmt-exif-thumbnail-checkbox">
                                             <input type="checkbox" 
                                                    id="mmt_keep_exif_thumbnails" 
                                                    name="settings[keep_exif_thumbnails]" 
                                                    value="1"
-                                                   <?php checked($settings['keep_exif_thumbnails']); ?>>
+                                                   <?php checked( $settings['keep_exif_thumbnails'] ); ?>>
                                             <?php
-                                                $thumb_w = get_option('thumbnail_size_w');
-                                                $thumb_h = get_option('thumbnail_size_h');
+                                                $thumb_w = get_option( 'thumbnail_size_w' );
+                                                $thumb_h = get_option( 'thumbnail_size_h' );
                                                 $thumb_label = sprintf(
                                                     esc_html__( 'Keep EXIF for post thumbnails (%dx%d)', 'modern-thumbnails' ),
-                                                    intval($thumb_w),
-                                                    intval($thumb_h)
+                                                    intval( $thumb_w ),
+                                                    intval( $thumb_h )
                                                 );
                                             ?>
                                             <span class="mmt-checkbox-label"><?php echo $thumb_label; ?></span>
