@@ -356,6 +356,10 @@ Before adding configuration to your nginx or Apache setup:
 
 ## 📊 Version History
 
+### Version 0.0.2 (February 2026)
+- Improve WordPress coding standard compliance
+- Fix handling plugin settings
+
 ### Version 0.0.1 (February 2026)
 - Initial release
 - WebP thumbnail generation
