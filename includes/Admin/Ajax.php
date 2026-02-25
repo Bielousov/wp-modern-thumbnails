@@ -1105,5 +1105,53 @@ class Ajax {
         add_action('wp_ajax_mmt_regenerate_queue_process', [self::class, 'regenerateQueueProcess']);
         add_action('wp_ajax_mmt_regenerate_queue_size_start', [self::class, 'regenerateQueueSizeStart']);
         add_action('wp_ajax_mmt_regenerate_queue_process_size', [self::class, 'regenerateQueueProcessSize']);
+        add_action('wp_ajax_mmt_dismiss_nginx_notice', [self::class, 'dismissNginxNotice']);
+        add_action('wp_ajax_mmt_dismiss_apache_notice', [self::class, 'dismissApacheNotice']);
+    }
+    
+    /**
+     * Handle dismissal of nginx configuration notice
+     * 
+     * @return void
+     */
+    public static function dismissNginxNotice() {
+        // Verify nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mmt_dismiss_notice')) {
+            wp_send_json_error(['message' => 'Invalid nonce']);
+        }
+        
+        // Check user capabilities
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'Insufficient permissions']);
+        }
+        
+        // Set transient for 30 days (don't show notice again)
+        set_transient('mmt_nginx_config_notice_dismissed', true, 30 * 24 * 3600);
+        delete_transient('mmt_nginx_config_notice'); // Clear the show notice transient
+        
+        wp_send_json_success(['message' => 'Notice dismissed']);
+    }
+    
+    /**
+     * Handle dismissal of Apache configuration notice
+     * 
+     * @return void
+     */
+    public static function dismissApacheNotice() {
+        // Verify nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mmt_dismiss_notice')) {
+            wp_send_json_error(['message' => 'Invalid nonce']);
+        }
+        
+        // Check user capabilities
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'Insufficient permissions']);
+        }
+        
+        // Set transient for 30 days (don't show notice again)
+        set_transient('mmt_apache_config_notice_dismissed', true, 30 * 24 * 3600);
+        delete_transient('mmt_apache_config_notice'); // Clear the show notice transient
+        
+        wp_send_json_success(['message' => 'Notice dismissed']);
     }
 }

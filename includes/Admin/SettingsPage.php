@@ -11,6 +11,8 @@ use ModernMediaThumbnails\ImageSizeManager;
 use ModernMediaThumbnails\FormatManager;
 use ModernMediaThumbnails\Settings;
 use ModernMediaThumbnails\SystemCheck;
+use ModernMediaThumbnails\NginxConfigCheck;
+use ModernMediaThumbnails\ApacheConfigCheck;
 
 class SettingsPage {
     
@@ -359,6 +361,63 @@ class SettingsPage {
                                 </td>
                                 <td><?php esc_html_e('Next-generation image format with superior compression. Optional enhancement.', 'modern-media-thumbnails'); ?></td>
                             </tr>
+                            <tr>
+                                <td><strong><?php esc_html_e('Web Server Type', 'modern-media-thumbnails'); ?></strong></td>
+                                <td>
+                                    <?php 
+                                        if (NginxConfigCheck::isRunningOnNginx()) {
+                                            echo '<span style="color: green;">✓ Nginx</span>';
+                                            if (!empty($_SERVER['SERVER_SOFTWARE'])) {
+                                                echo ' <small style="color: #666;">(' . esc_html($_SERVER['SERVER_SOFTWARE']) . ')</small>';
+                                            }
+                                        } elseif (ApacheConfigCheck::isRunningOnApache()) {
+                                            echo '<span style="color: green;">✓ Apache</span>';
+                                            if (function_exists('apache_get_version')) {
+                                                echo ' <small style="color: #666;">(' . esc_html(apache_get_version()) . ')</small>';
+                                            } elseif (!empty($_SERVER['SERVER_SOFTWARE'])) {
+                                                echo ' <small style="color: #666;">(' . esc_html($_SERVER['SERVER_SOFTWARE']) . ')</small>';
+                                            }
+                                        } else {
+                                            echo '<span style="color: #999;">Unknown</span>';
+                                            if (!empty($_SERVER['SERVER_SOFTWARE'])) {
+                                                echo ' <small style="color: #666;">(' . esc_html($_SERVER['SERVER_SOFTWARE']) . ')</small>';
+                                            }
+                                        }
+                                    ?>
+                                </td>
+                                <td><?php esc_html_e('The web server software running on your hosting.', 'modern-media-thumbnails'); ?></td>
+                            </tr>
+                            <?php if (NginxConfigCheck::isRunningOnNginx()): ?>
+                            <tr>
+                                <td><strong><?php esc_html_e('Nginx Image Negotiation', 'modern-media-thumbnails'); ?></strong></td>
+                                <td>
+                                    <?php 
+                                        if (NginxConfigCheck::isNginxConfigured()) {
+                                            echo '<span style="color: green;">✓ ' . esc_html__('Configured', 'modern-media-thumbnails') . '</span>';
+                                        } else {
+                                            echo '<span style="color: orange;">⚠ ' . esc_html__('Not Configured', 'modern-media-thumbnails') . '</span>';
+                                        }
+                                    ?>
+                                </td>
+                                <td><?php esc_html_e('Automatic serving of AVIF and WebP formats based on browser support. Recommended for best performance. May further improve page load speed by up to 25-35% for compatible browsers.', 'modern-media-thumbnails'); ?> <a href="#" class="mmt-config-view-link" data-config="nginx"><?php esc_html_e('View Configuration', 'modern-media-thumbnails'); ?></a></td>
+                            </tr>
+                            <?php elseif (ApacheConfigCheck::isRunningOnApache()): ?>
+                            <tr>
+                                <td><strong><?php esc_html_e('Apache Rewrite Rules', 'modern-media-thumbnails'); ?></strong></td>
+                                <td>
+                                    <?php 
+                                        if (!ApacheConfigCheck::isModRewriteEnabled()) {
+                                            echo '<span style="color: red;">✗ ' . esc_html__('mod_rewrite Disabled', 'modern-media-thumbnails') . '</span>';
+                                        } elseif (ApacheConfigCheck::isApacheConfigured()) {
+                                            echo '<span style="color: green;">✓ ' . esc_html__('Configured', 'modern-media-thumbnails') . '</span>';
+                                        } else {
+                                            echo '<span style="color: orange;">⚠ ' . esc_html__('Not Configured', 'modern-media-thumbnails') . '</span>';
+                                        }
+                                    ?>
+                                </td>
+                                <td><?php esc_html_e('Automatic serving of AVIF or Legacy formats based on browser support via .htaccess. Requires mod_rewrite. May further improve page load speed by up to 25-35% for compatible browsers.', 'modern-media-thumbnails'); ?> <a href="#" class="mmt-config-view-link" data-config="apache"><?php esc_html_e('View Configuration', 'modern-media-thumbnails'); ?></a></td>
+                            </tr>
+                            <?php endif; ?>
                         </tbody>
                     </table>
                     
@@ -396,6 +455,56 @@ class SettingsPage {
                     </table>
                 </div>
             <?php endif; ?>
+            
+            <!-- Configuration Modal Dialog -->
+            <div id="mmt-config-modal" class="mmt-config-modal">
+                <div class="mmt-config-modal-content">
+                    <div class="mmt-config-modal-header">
+                        <h2 id="mmt-config-modal-title"></h2>
+                        <button class="mmt-config-modal-close" id="mmt-config-modal-close">&times;</button>
+                    </div>
+                    
+                    <!-- Nginx Configuration -->
+                    <div id="mmt-config-nginx" style="display: none;">
+                        <p><?php esc_html_e('To enable automatic serving of optimized AVIF and WebP formats on nginx, add this configuration to your server block:', 'modern-media-thumbnails'); ?></p>
+                        <p><strong><?php esc_html_e('File location:', 'modern-media-thumbnails'); ?></strong> <code>/etc/nginx/sites-enabled/default</code> <?php esc_html_e('or similar', 'modern-media-thumbnails'); ?></p>
+                        <p><small><?php esc_html_e('After adding this configuration, reload nginx with: sudo systemctl reload nginx', 'modern-media-thumbnails'); ?></small></p>
+                        <p><small style="color: #d63638;"><strong><?php esc_html_e('Important:', 'modern-media-thumbnails'); ?></strong> <?php esc_html_e('Backup your existing nginx configuration file before making changes.', 'modern-media-thumbnails'); ?></small></p>
+                        <div class="mmt-config-code-block">
+                            <pre class="mmt-config-code"><?php 
+                                if (class_exists('ModernMediaThumbnails\\NginxConfigCheck')) {
+                                    echo esc_html(NginxConfigCheck::getConfigurationSnippet());
+                                } else {
+                                    echo esc_html(__("Configuration not available. Please check the plugin installation.", 'modern-media-thumbnails'));
+                                }
+                            ?></pre>
+                        </div>
+                        <div class="mmt-config-modal-actions">
+                            <button class="mmt-config-copy-btn" id="mmt-copy-nginx"><?php esc_html_e('Copy Code', 'modern-media-thumbnails'); ?></button>
+                        </div>
+                    </div>
+                    
+                    <!-- Apache Configuration -->
+                    <div id="mmt-config-apache" style="display: none;">
+                        <p><?php esc_html_e('To enable automatic serving of optimized AVIF and WebP formats on Apache, add this configuration to your root .htaccess file:', 'modern-media-thumbnails'); ?></p>
+                        <p><strong><?php esc_html_e('File location:', 'modern-media-thumbnails'); ?></strong> <code><?php echo esc_html(ABSPATH . '.htaccess'); ?></code></p>
+                        <p><small><?php esc_html_e('This feature requires Apache mod_rewrite to be enabled. If mod_rewrite is not available, your site will continue to work normally—this configuration simply won\'t apply.', 'modern-media-thumbnails'); ?></small></p>
+                        <p><small style="color: #d63638;"><strong><?php esc_html_e('Important:', 'modern-media-thumbnails'); ?></strong> <?php esc_html_e('Backup your existing .htaccess file before making changes. If something goes wrong, the backup allows you to restore it quickly.', 'modern-media-thumbnails'); ?></small></p>
+                        <div class="mmt-config-code-block">
+                            <pre class="mmt-config-code"><?php 
+                                if (class_exists('ModernMediaThumbnails\\ApacheConfigCheck')) {
+                                    echo esc_html(ApacheConfigCheck::getConfigurationSnippet());
+                                } else {
+                                    echo esc_html(__("Configuration not available. Please check the plugin installation.", 'modern-media-thumbnails'));
+                                }
+                            ?></pre>
+                        </div>
+                        <div class="mmt-config-modal-actions">
+                            <button class="mmt-config-copy-btn" id="mmt-copy-apache"><?php esc_html_e('Copy Code', 'modern-media-thumbnails'); ?></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
             
             <!-- Global Footer: About This Plugin -->
             <div class="mmt-about-footer">
@@ -560,6 +669,59 @@ class SettingsPage {
                         var $valueDisplay = $slider.siblings('.mmt-quality-value');
                         $valueDisplay.text($(this).val());
                     });
+                    
+                    // Configuration Modal
+                    var $modal = $('#mmt-config-modal');
+                    var $modalTitle = $('#mmt-config-modal-title');
+                    var $modalClose = $('#mmt-config-modal-close');
+                    
+                    // Open modal on config link click
+                    $('.mmt-config-view-link').on('click', function(e) {
+                        e.preventDefault();
+                        var configType = $(this).data('config');
+                        var title = configType === 'nginx' ? 'Nginx Configuration' : 'Apache Configuration';
+                        
+                        $modalTitle.text(title);
+                        $('#mmt-config-nginx, #mmt-config-apache').hide();
+                        $('#mmt-config-' + configType).show();
+                        $modal.addClass('active');
+                    });
+                    
+                    // Close modal on close button or background click
+                    $modalClose.on('click', function() {
+                        $modal.removeClass('active');
+                    });
+                    
+                    $modal.on('click', function(e) {
+                        if (e.target === this) {
+                            $modal.removeClass('active');
+                        }
+                    });
+                    
+                    // Copy buttons
+                    $('#mmt-copy-nginx').on('click', function() {
+                        var code = $('#mmt-config-nginx .mmt-config-code').text();
+                        copyToClipboard(code, this);
+                    });
+                    
+                    $('#mmt-copy-apache').on('click', function() {
+                        var code = $('#mmt-config-apache .mmt-config-code').text();
+                        copyToClipboard(code, this);
+                    });
+                    
+                    function copyToClipboard(text, button) {
+                        var $button = $(button);
+                        var originalText = $button.text();
+                        
+                        navigator.clipboard.writeText(text).then(function() {
+                            $button.text('<?php esc_html_e('Copied!', 'modern-media-thumbnails'); ?>');
+                            setTimeout(function() {
+                                $button.text(originalText);
+                            }, 2000);
+                        }).catch(function(err) {
+                            console.error('Failed to copy:', err);
+                        });
+                    }
                 });
             })();
         </script>

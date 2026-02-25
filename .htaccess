@@ -1,0 +1,38 @@
+# Apache Configuration for Modern Media Thumbnails
+# Place this in your root .htaccess file
+# 
+# This configuration enables content negotiation to serve optimized image formats
+# based on browser capabilities. The plugin generates AVIF and WebP versions of
+# thumbnails, and this configuration intelligently serves the best format.
+#
+# How it works:
+# 1. Checks if browser supports AVIF via Accept header
+# 2. Checks if browser supports WebP via Accept header
+# 3. Serves images in priority: AVIF → WebP → Original (JPEG/PNG/GIF)
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Content negotiation for modern image formats
+    # Serve AVIF if browser supports it and file exists
+    RewriteCond %{HTTP_ACCEPT} image/avif
+    RewriteCond %{REQUEST_FILENAME}\.avif -f
+    RewriteRule ^wp-content/(.+)\.(jpg|jpeg|png|gif|webp)$ wp-content/$1.$2.avif [QSA,L,T=image/avif]
+
+    # Serve WebP if browser supports it and AVIF isn't available (or browser doesn't support AVIF)
+    RewriteCond %{HTTP_ACCEPT} image/webp
+    RewriteCond %{REQUEST_FILENAME}\.webp -f
+    RewriteRule ^wp-content/(.+)\.(jpg|jpeg|png|gif)$ wp-content/$1.$2.webp [QSA,L,T=image/webp]
+</IfModule>
+
+# Cache headers for optimized images
+<FilesMatch "\.(?:avif|webp)$">
+    <IfModule mod_expires.c>
+        ExpiresActive On
+        ExpiresDefault "access plus 1 year"
+    </IfModule>
+    <IfModule mod_headers.c>
+        Header set Cache-Control "public, max-age=31536000, immutable"
+        Header set Vary Accept
+    </IfModule>
+</FilesMatch>

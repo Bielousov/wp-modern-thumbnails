@@ -77,6 +77,13 @@ class Plugin {
         
         // Initialize default settings on plugin activation
         FormatManager::maybeInitializeDefaults();
+        
+        // Check server configuration and set transient if needed
+        if (NginxConfigCheck::isRunningOnNginx() && !NginxConfigCheck::isNginxConfigured()) {
+            set_transient('mmt_nginx_config_notice', true, 7 * 24 * 3600); // Show for 7 days
+        } elseif (ApacheConfigCheck::isRunningOnApache() && ApacheConfigCheck::isModRewriteEnabled() && !ApacheConfigCheck::isApacheConfigured()) {
+            set_transient('mmt_apache_config_notice', true, 7 * 24 * 3600); // Show for 7 days
+        }
     }
     
     /**

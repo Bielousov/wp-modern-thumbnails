@@ -8,6 +8,8 @@
 namespace ModernMediaThumbnails\Admin;
 
 use ModernMediaThumbnails\SystemCheck;
+use ModernMediaThumbnails\NginxConfigCheck;
+use ModernMediaThumbnails\ApacheConfigCheck;
 
 class AdminNotices {
     
@@ -43,6 +45,64 @@ class AdminNotices {
                     <?php esc_html_e('WebP format is not supported by your Imagick installation. Please update Imagick and ImageMagick library.', 'modern-media-thumbnails'); ?>
                 </p>
             </div>
+            <?php
+        }
+        
+        // Check nginx configuration if running on nginx
+        if (NginxConfigCheck::isRunningOnNginx() && !NginxConfigCheck::isNginxConfigured() && get_transient('mmt_nginx_config_notice') && !get_transient('mmt_nginx_config_notice_dismissed')) {
+            $settings_url = admin_url('options-general.php?page=mmt-settings&tab=system');
+            ?>
+            <div class="notice notice-info is-dismissible" data-notice="mmt_nginx_notice">
+                <p>
+                    <strong><?php esc_html_e('Modern Media Thumbnails:', 'modern-media-thumbnails'); ?></strong>
+                    <?php esc_html_e('Your server is running nginx, but the image format content negotiation configuration has not been detected. This is optional but recommended for optimal performance.', 'modern-media-thumbnails'); ?>
+                    <a href="<?php echo esc_url($settings_url); ?>"><?php esc_html_e('View Configuration Guide', 'modern-media-thumbnails'); ?></a>
+                </p>
+            </div>
+            <script>
+            jQuery(document).ready(function($) {
+                // Hide nginx notice for 30 days when dismissed
+                $('.notice[data-notice="mmt_nginx_notice"] .notice-dismiss').click(function() {
+                    $.ajax({
+                        url: ajaxurl,
+                        type: 'POST',
+                        data: {
+                            action: 'mmt_dismiss_nginx_notice',
+                            nonce: '<?php echo wp_create_nonce('mmt_dismiss_notice'); ?>'
+                        }
+                    });
+                });
+            });
+            </script>
+            <?php
+        }
+        
+        // Check Apache configuration if running on Apache
+        if (ApacheConfigCheck::isRunningOnApache() && ApacheConfigCheck::isModRewriteEnabled() && !ApacheConfigCheck::isApacheConfigured() && get_transient('mmt_apache_config_notice') && !get_transient('mmt_apache_config_notice_dismissed')) {
+            $settings_url = admin_url('options-general.php?page=mmt-settings&tab=system');
+            ?>
+            <div class="notice notice-info is-dismissible" data-notice="mmt_apache_notice">
+                <p>
+                    <strong><?php esc_html_e('Modern Media Thumbnails:', 'modern-media-thumbnails'); ?></strong>
+                    <?php esc_html_e('Your server is running Apache with mod_rewrite enabled, but the image format content negotiation configuration has not been detected. This is optional but recommended for optimal performance.', 'modern-media-thumbnails'); ?>
+                    <a href="<?php echo esc_url($settings_url); ?>"><?php esc_html_e('View Configuration Guide', 'modern-media-thumbnails'); ?></a>
+                </p>
+            </div>
+            <script>
+            jQuery(document).ready(function($) {
+                // Hide Apache notice for 30 days when dismissed
+                $('.notice[data-notice="mmt_apache_notice"] .notice-dismiss').click(function() {
+                    $.ajax({
+                        url: ajaxurl,
+                        type: 'POST',
+                        data: {
+                            action: 'mmt_dismiss_apache_notice',
+                            nonce: '<?php echo wp_create_nonce('mmt_dismiss_notice'); ?>'
+                        }
+                    });
+                });
+            });
+            </script>
             <?php
         }
     }
