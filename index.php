@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Modern Thumbnails
  * Description: Generate WebP thumbnails using Imagick library based on theme-defined image sizes
- * Version: 0.0.1
+ * Version: 0.0.2
  * Author: Logovo
  * Text Domain: modern-thumbnails
  * Domain Path: /languages
@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) {
 // Define plugin constants
 define('MMT_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('MMT_PLUGIN_URL', plugin_dir_url(__FILE__));
-define('MMT_PLUGIN_VERSION', '0.0.1');
+define( 'MMT_PLUGIN_VERSION', '0.0.2' );
 
 // Autoloader for plugin classes
 spl_autoload_register(function ($class) {
@@ -36,6 +36,9 @@ spl_autoload_register(function ($class) {
         require_once $file;
     }
 });
+
+// Load helper functions
+require_once __DIR__ . '/includes/Helpers.php';
 
 // Initialize the plugin
 \ModernMediaThumbnails\Plugin::init();

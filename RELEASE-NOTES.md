@@ -1,5 +1,90 @@
 # Modern Thumbnails - Release Notes
 
+## Version 0.0.2
+
+**Release Date:** February 25, 2026
+
+### 🐛 Bug Fixes
+
+#### Settings & Data Persistence
+- **Fixed:** Settings not being saved when toggling checkboxes
+  - Issue: EXIF settings (`keep_exif`, `keep_exif_thumbnails`) were not being collected by JavaScript
+  - Solution: Updated `saveSettings()` function to include all form fields
+  
+- **Fixed:** Double toast notification when toggling "Generate WordPress Default Thumbnails"
+  - Issue: Two overlapping event handlers were both calling `saveSettings()`
+  - Solution: Consolidated event handlers to fire only once per toggle
+
+#### Dynamic UI Updates
+- **Fixed:** Footer sections not displaying when enabling checkboxes without page refresh
+  - Issue: Quality slider and EXIF sub-settings only rendered in HTML if parent checkbox was enabled on load
+  - Solution: Always render footer HTML but use `display: none` when disabled, allowing JavaScript to show/hide dynamically
+
+#### Notifications
+- **Fixed:** Toast notifications shifting page content downward
+  - Issue: Success notifications used WordPress notice styling which inserted into document flow
+  - Solution: Implemented fixed-position toast notifications that float over content without affecting layout
+
+#### JavaScript Syntax
+- **Fixed:** JavaScript syntax error in toast function
+  - Issue: Multi-line string literal caused "Invalid or unexpected token" error
+  - Solution: Converted to single-line string concatenation
+
+### ✨ Improvements
+
+#### Code Quality
+- **Updated:** Text domain from `modern-media-thumbnails` to `modern-thumbnails` (matches plugin slug)
+  - Applied to all PHP files: SettingsPage, Ajax, AdminNotices, MediaDetails, Assets, BulkActions, MediaSettings
+  
+- **Updated:** Plugin method names to follow WordPress snake_case convention
+  - `loadTextDomain()` → `load_text_domain()`
+  - `addPluginActionLinks()` → `add_plugin_action_links()`
+  - Updated all references throughout codebase
+  
+- **Improved:** Code spacing and formatting to meet WordPress coding standards
+  - Added proper spacing in conditionals: `if ( condition )` instead of `if(condition)`
+  - Improved array syntax: `[ Class::class, 'method' ]`
+  - Enhanced function parameter spacing
+
+#### Notifications & UX
+- **Improved:** Toast notifications now close automatically when a new one appears
+  - Prevents multiple success toasts from stacking on screen
+  - Better experience when users make rapid successive changes
+  
+- **Improved:** Toast animations with smooth opacity and transform transitions
+  - 0.3 second fade-in/out transitions
+  - Better visual feedback for actions
+
+#### Accessibility
+- **Improved:** Added ARIA attributes to toast notifications
+  - `role="status"` for appropriate screen reader announcements
+  - `aria-live="polite"` for non-intrusive updates
+  
+- **Improved:** Mobile responsiveness for toast notifications
+  - Adjusted positioning on small screens (< 600px width)
+
+### 📋 Technical Details
+
+#### Database & Settings
+- Settings saved via AJAX with proper nonce verification
+- Full error handling with user-friendly error messages
+- Settings persist immediately without page reload
+
+#### Console Logging
+- Added detailed console logging for debugging:
+  - Form data collection
+  - Nonce validation
+  - AJAX request/response tracking
+  - Settings save confirmation
+  
+### 🎯 User-Facing Changes
+- Settings now save instantly with visual confirmation (fixed-position toast)
+- Toggling EXIF settings immediately shows/hides sub-options
+- No page refreshes needed for settings to take effect
+- Better error feedback if connection fails
+
+---
+
 ## Version 0.0.1
 
 **Release Date:** February 25, 2026

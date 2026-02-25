@@ -35,7 +35,7 @@ class MediaModal {
         
         // Enqueue the media modal script
         $plugin_url = defined('MMT_PLUGIN_URL') ? MMT_PLUGIN_URL : plugin_dir_url(dirname(dirname(dirname(__FILE__))));
-        $plugin_version = defined('MMT_PLUGIN_VERSION') ? MMT_PLUGIN_VERSION : '0.0.1';
+        $plugin_version = mmt_get_version();
         
         wp_enqueue_script(
             'mmt-media-modal',

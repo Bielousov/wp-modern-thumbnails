@@ -319,9 +319,14 @@ class SettingsPage {
             <?php if ( $active_tab === 'system' ): ?>
                 <div class="tab-content">
                     <h2><?php esc_html_e( 'System Status', 'modern-thumbnails' ); ?></h2>
-                    <p><?php esc_html_e( 'Check if your server has the required components installed and properly configured.', 'modern-thumbnails' ); ?></p>
+                    
+                    <div class="mmt-plugin-version-info">
+                        <?php esc_html_e( 'Modern Thumbnails Plugin Version:', 'modern-thumbnails' ); ?>
+                        <span class="mmt-version-value"><?php echo esc_html( mmt_get_version() ); ?></span>
+                    </div>
                     
                     <h3><?php esc_html_e( 'Server Components', 'modern-thumbnails' ); ?></h3>
+                    <p><?php esc_html_e( 'Check if your server has the required components installed and properly configured.', 'modern-thumbnails' ); ?></p>
                     <table class="wp-list-table widefat striped">
                         <thead>
                             <tr>
@@ -511,7 +516,7 @@ class SettingsPage {
                     <!-- Logo Icon -->
                     <div class="mmt-about-logo">
                         <?php
-                        $logo_path = dirname(dirname(dirname(__FILE__))) . '/images/logo.svg';
+                        $logo_path = dirname(dirname(dirname(__FILE__))) . '/assets/logo.svg';
                         if (file_exists($logo_path)) {
                             include $logo_path;
                         }
