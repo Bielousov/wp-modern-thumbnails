@@ -4,7 +4,7 @@ License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable Tag: 0.0.3
+Stable Tag: 0.0.4
 
 Generate modern image formats (WebP, AVIF) for WordPress thumbnails with ImageMagick.
 
@@ -102,25 +102,23 @@ ImageMagick must be available on your server. Most managed WordPress hosts inclu
 
 == Changelog ==
 
-= 0.0.3 =
+= 0.0.4 =
+* Full WordPress coding standards compliance
+* Enhanced security hardening and sanitization
+* Added database query caching
 * Improved error handling and validation
+
+= 0.0.3 =
 * Enhanced ImageMagick compatibility detection
 * Better debug logging for troubleshooting
-* Security hardening and sanitization improvements
-* Database query caching for better performance
-* Full WordPress coding standards compliance
 
 = 0.0.2 =
 * Added AVIF format support
 * Improved bulk regeneration performance
-* Better UI for settings and status pages
-* Fixed compatibility with older PHP versions
 
 = 0.0.1 =
 * Initial release
 * WebP generation support
-* Basic thumbnail regeneration
-* Settings dashboard
 
 == License ==
 

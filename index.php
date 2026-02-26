@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Modern Thumbnails
  * Description: Generate WebP thumbnails based on theme-defined image sizes. Requires ImageMagick PHP extension.
- * Version: 0.0.3
+ * Version: 0.0.4
  * Author: Logovo
  * License: GPL v2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -23,7 +23,7 @@ if (!defined('ABSPATH')) {
 // Define plugin constants
 define('MMT_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('MMT_PLUGIN_URL', plugin_dir_url(__FILE__));
-define( 'MMT_PLUGIN_VERSION', '0.0.3' );
+define( 'MMT_PLUGIN_VERSION', '0.0.4' );
 
 // Autoloader for plugin classes
 spl_autoload_register(function ($class) {
