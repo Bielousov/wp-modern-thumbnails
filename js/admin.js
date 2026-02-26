@@ -148,7 +148,7 @@ jQuery(function ($) {
     $('#mmt-restore-originals').on('click', function (e) {
         e.preventDefault();
 
-        var confirmMsg = 'This will remove all WebP and AVIF thumbnails and regenerate WordPress default thumbnails using the GD library. Do you want to proceed?';
+        var confirmMsg = 'This will remove all WebP and AVIF thumbnails and regenerate WordPress default thumbnails using standard image processing flow. Do you want to proceed?';
         if (!confirm(confirmMsg)) {
             return;
         }
