@@ -135,40 +135,38 @@ class ApacheConfigCheck {
      * @return string The configuration snippet
      */
     public static function getConfigurationSnippet() {
-        return <<<'APACHE'
-# BEGIN Modern Thumbnails
-# This section enables automatic serving of optimized AVIF and WebP image formats
-# based on browser support. Much smaller file sizes = faster pages.
-
-<IfModule mod_rewrite.c>
-    RewriteEngine On
-
-    # Serve AVIF format if the browser supports it AND the .avif version exists
-    # AVIF provides superior compression (25-35% smaller than JPEG)
-    RewriteCond %{HTTP_ACCEPT} image/avif
-    RewriteCond %{REQUEST_FILENAME}\.avif -f
-    RewriteRule ^wp-content/(.+)\.(jpg|jpeg|png|gif|webp)$ wp-content/$1.$2.avif [QSA,L,T=image/avif]
-
-    # Fallback to WebP if AVIF unavailable but browser supports it
-    # WebP is widely supported and 25-35% smaller than JPEG/PNG
-    RewriteCond %{HTTP_ACCEPT} image/webp
-    RewriteCond %{REQUEST_FILENAME}\.webp -f
-    RewriteRule ^wp-content/(.+)\.(jpg|jpeg|png|gif)$ wp-content/$1.$2.webp [QSA,L,T=image/webp]
-</IfModule>
-
-# Cache headers: Allow browsers to cache optimized images for 1 year
-<FilesMatch "\.(?:avif|webp)$">
-    <IfModule mod_expires.c>
-        ExpiresActive On
-        ExpiresDefault "access plus 1 year"
-    </IfModule>
-    <IfModule mod_headers.c>
-        Header set Cache-Control "public, max-age=31536000, immutable"
-        Header set Vary "Accept"
-    </IfModule>
-</FilesMatch>
-
-# END Modern Thumbnails
-APACHE;
+        return "# BEGIN Modern Thumbnails\n" .
+               "# This section enables automatic serving of optimized AVIF and WebP image formats\n" .
+               "# based on browser support. Much smaller file sizes = faster pages.\n" .
+               "\n" .
+               "<IfModule mod_rewrite.c>\n" .
+               "    RewriteEngine On\n" .
+               "\n" .
+               "    # Serve AVIF format if the browser supports it AND the .avif version exists\n" .
+               "    # AVIF provides superior compression (25-35% smaller than JPEG)\n" .
+               "    RewriteCond %{HTTP_ACCEPT} image/avif\n" .
+               "    RewriteCond %{REQUEST_FILENAME}\\.avif -f\n" .
+               "    RewriteRule ^wp-content/(.+)\\.(jpg|jpeg|png|gif|webp)$ wp-content/$1.$2.avif [QSA,L,T=image/avif]\n" .
+               "\n" .
+               "    # Fallback to WebP if AVIF unavailable but browser supports it\n" .
+               "    # WebP is widely supported and 25-35% smaller than JPEG/PNG\n" .
+               "    RewriteCond %{HTTP_ACCEPT} image/webp\n" .
+               "    RewriteCond %{REQUEST_FILENAME}\\.webp -f\n" .
+               "    RewriteRule ^wp-content/(.+)\\.(jpg|jpeg|png|gif)$ wp-content/$1.$2.webp [QSA,L,T=image/webp]\n" .
+               "</IfModule>\n" .
+               "\n" .
+               "# Cache headers: Allow browsers to cache optimized images for 1 year\n" .
+               "<FilesMatch \"\\.(?:avif|webp)$\">\n" .
+               "    <IfModule mod_expires.c>\n" .
+               "        ExpiresActive On\n" .
+               "        ExpiresDefault \"access plus 1 year\"\n" .
+               "    </IfModule>\n" .
+               "    <IfModule mod_headers.c>\n" .
+               "        Header set Cache-Control \"public, max-age=31536000, immutable\"\n" .
+               "        Header set Vary \"Accept\"\n" .
+               "    </IfModule>\n" .
+               "</FilesMatch>\n" .
+               "\n" .
+               "# END Modern Thumbnails";
     }
 }

@@ -1,0 +1,33 @@
+# Translation template file for Modern Thumbnails
+# Copyright (C) 2026 Modern Thumbnails Contributors
+# This file is distributed under the same license as the Modern Thumbnails package.
+# Translators:
+# Anton Bielousov <contact@bielousov.com>, 2026
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Modern Thumbnails 0.0.4\n"
+"Report-Msgid-Bugs-To: https://github.com/bielousov/modern-thumbnails\n"
+"POT-Creation-Date: 2026-02-26 00:00:00+0000\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: en\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+
+#. Plugin Name
+msgid "Modern Thumbnails"
+msgstr ""
+
+#. Plugin URI
+msgid "https://github.com/bielousov/modern-thumbnails"
+msgstr ""
+
+#. Description
+msgid "Generate WebP thumbnails based on theme-defined image sizes. Requires ImageMagick PHP extension."
+msgstr ""
+
+#. Author
+msgid "Logovo"
+msgstr ""

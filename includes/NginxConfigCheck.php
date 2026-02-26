@@ -120,10 +120,6 @@ class NginxConfigCheck {
      */
     public static function getConfigurationSnippet() {
         $config_path = realpath(dirname(__DIR__) . '/nginx.conf');
-        $snippet = <<<'NGINX'
-# Modern WebP Thumbnails
-include %s;
-NGINX;
-        return sprintf($snippet, $config_path);
+        return sprintf("# Modern WebP Thumbnails\ninclude %s;\n", $config_path);
     }
 }
