@@ -204,7 +204,7 @@ All CSS properties must be organized in the following order within each rule:
 - Generate translation template file (.pot) during releases
 
 ### 7. Version Management
-- Current version: **0.0.4**
+- Current version: **0.0.5**
 - Update in all three locations:
   1. `index.php` — Plugin header `Version:` field
   2. `index.php` — `MMT_PLUGIN_VERSION` constant

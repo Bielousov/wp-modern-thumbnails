@@ -1,5 +1,20 @@
 # Modern Thumbnails - Release Notes
 
+## Version 0.0.5
+
+**Release Date:** February 26, 2026
+
+### Highlights
+
+- Bumped plugin to **0.0.5** with documentation and packaging improvements
+- Replaced all heredoc/nowdoc snippets with safe string concatenation for PHPCS compliance
+- Finalized CSS property ordering guidelines and updated examples across docs
+- Added `doc/COPILOT_INSTRUCTIONS.md` and guidance for local symlink usage (do not commit hidden files)
+- Added "Restore WordPress Original Thumbnails" feature: admin UI button that removes generated WebP/AVIF files and restores attachment metadata to original filenames; when originals are missing the plugin will generate JPEG thumbnails and update metadata — the restore flow bypasses Modern Thumbnails filters to ensure WordPress serves standard thumbnails.
+- Minor bug fixes and documentation cleanups
+
+---
+
 ## Version 0.0.3
 
 **Release Date:** February 25, 2026

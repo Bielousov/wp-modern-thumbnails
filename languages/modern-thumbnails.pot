@@ -7,7 +7,7 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: Modern Thumbnails 0.0.4\n"
+"Project-Id-Version: Modern Thumbnails 0.0.5\n"
 "Report-Msgid-Bugs-To: https://github.com/bielousov/modern-thumbnails\n"
 "POT-Creation-Date: 2026-02-26 00:00:00+0000\n"
 "MIME-Version: 1.0\n"

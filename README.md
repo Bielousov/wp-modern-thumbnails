@@ -4,7 +4,7 @@ License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable Tag: 0.0.4
+Stable Tag: 0.0.5
 
 Generate modern image formats (WebP, AVIF) for WordPress thumbnails with ImageMagick.
 
@@ -109,6 +109,13 @@ Yes. Modern Thumbnails respects WordPress srcset and converts all registered ima
 ImageMagick must be available on your server. Most managed WordPress hosts include it; ask your provider if unsure.
 
 == Changelog ==
+
+= 0.0.5 =
+* Bump version to 0.0.5
+* Update Copilot instructions and local symlink guidance
+* Finalize CSS property ordering guidelines and examples
+* Replace heredoc/nowdoc usage with safe string concatenation
+* Minor bug fixes and documentation updates
 
 = 0.0.4 =
 * Full WordPress coding standards compliance
