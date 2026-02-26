@@ -4,6 +4,19 @@
 
 **Release Date:** February 25, 2026
 
+### ⚠️  IMPORTANT: System Requirements
+This plugin **REQUIRES** the PHP **Imagick** (ImageMagick) extension to function. Without it:
+- The plugin will not work
+- Thumbnails will not be generated
+- Media uploads may be affected
+
+**Before using this plugin:**
+1. Check if Imagick is installed: Go to **Media → Modern Thumbnails → System Status** after activation
+2. If Imagick is NOT installed (shows red ✗), contact your hosting provider to enable it
+3. Without Imagick, please do not activate this plugin
+
+See the [Requirements](#-requirements) section below for full details.
+
 ### 🐛 Bug Fixes
 
 #### Settings & Data Persistence
@@ -153,11 +166,19 @@ Comprehensive status monitoring including:
 
 ## 🔧 Technical Specifications
 
-### Requirements
+### ⚠️  Requirements (CRITICAL)
+
+#### Required
+- **ImageMagick/Imagick:** PHP Imagick extension **MUST be installed and enabled**
+  - This is not optional—the plugin will NOT function without it
+  - Contact your hosting provider to enable this extension
+  - Check status in System Status tab after installing
 - **WordPress:** 5.0 or higher
 - **PHP:** 7.4 or higher
-- **Imagick:** PHP Imagick extension (must be installed)
-- **Web Server:** nginx or Apache (for optimal performance)
+
+#### Optional (Recommended)
+- **Web Server:** nginx or Apache (for optimal performance with content negotiation)
+- **ImageMagick CLI** (not required, but useful for advanced operations)
 
 ### Supported Image Formats
 - **Source:** JPEG, PNG, GIF, WebP

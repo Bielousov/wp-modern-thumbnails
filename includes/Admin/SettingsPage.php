@@ -63,6 +63,19 @@ class SettingsPage {
                 </a>
             </nav>
             
+            <!-- Critical Requirement Alert -->
+            <?php if ( ! $imagick_available ): ?>
+                <div class="notice notice-error mmt-requirement-alert">
+                    <p>
+                        <strong>⚠️ <?php esc_html_e( 'CRITICAL: Imagick Not Installed', 'modern-thumbnails' ); ?></strong><br>
+                        <?php esc_html_e( 'Modern Thumbnails requires the PHP Imagick extension to function. Without it, the plugin will not work and thumbnails will not be generated.', 'modern-thumbnails' ); ?>
+                    </p>
+                    <p>
+                        <?php esc_html_e( 'Please contact your hosting provider to enable the Imagick extension, then come back to this page to verify it has been installed.', 'modern-thumbnails' ); ?>
+                    </p>
+                </div>
+            <?php endif; ?>
+            
             <!-- Settings Tab -->
             <?php if ($active_tab === 'settings'): ?>
                 <div class="tab-content">
@@ -320,6 +333,20 @@ class SettingsPage {
                 <div class="tab-content">
                     <h2><?php esc_html_e( 'System Status', 'modern-thumbnails' ); ?></h2>
                     
+                    <!-- Critical Imagick Status Alert -->
+                    <?php if ( ! $imagick_available ): ?>
+                        <div class="notice notice-error mmt-requirement-alert" style="margin-top: 0;">
+                            <p>
+                                <strong>⚠️ <?php esc_html_e( 'CRITICAL: Imagick is Required but Not Installed', 'modern-thumbnails' ); ?></strong><br>
+                                <?php esc_html_e( 'Modern Thumbnails requires the PHP Imagick extension to function. Without it, the plugin cannot generate thumbnails.', 'modern-thumbnails' ); ?>
+                            </p>
+                            <p>
+                                <strong><?php esc_html_e( 'Action Required:', 'modern-thumbnails' ); ?></strong> 
+                                <?php esc_html_e( 'Contact your hosting provider and ask them to enable the PHP Imagick extension. See the "Imagick" row below for more details.', 'modern-thumbnails' ); ?>
+                            </p>
+                        </div>
+                    <?php endif; ?>
+                    
                     <div class="mmt-plugin-version-info">
                         <?php esc_html_e( 'Modern Thumbnails Plugin Version:', 'modern-thumbnails' ); ?>
                         <span class="mmt-version-value"><?php echo esc_html( mmt_get_version() ); ?></span>
@@ -348,7 +375,7 @@ class SettingsPage {
                                 <td>
                                     <?php echo $imagick_available ? '<span style="color: green;">✓ ' . esc_html__( 'Installed', 'modern-thumbnails' ) . '</span>' : '<span style="color: red;">✗ ' . esc_html__( 'Not Installed', 'modern-thumbnails' ) . '</span>'; ?>
                                 </td>
-                                <td><?php esc_html_e( 'Image manipulation library required for processing. Necessary for plugin functionality.', 'modern-thumbnails' ); ?></td>
+                                <td><strong><?php esc_html_e( 'REQUIRED', 'modern-thumbnails' ); ?></strong> — <?php esc_html_e( 'PHP ImageMagick extension. This is critical—without it, the plugin cannot generate thumbnails. If not installed, contact your hosting provider immediately to enable it.', 'modern-thumbnails' ); ?></td>
                             </tr>
                             <tr>
                                 <td><strong><?php esc_html_e( 'WebP', 'modern-thumbnails' ); ?></strong></td>

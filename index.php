@@ -1,13 +1,16 @@
 <?php
 /**
  * Plugin Name: Modern Thumbnails
- * Description: Generate WebP thumbnails using Imagick library based on theme-defined image sizes
+ * Description: Generate WebP thumbnails based on theme-defined image sizes. Requires ImageMagick PHP extension.
  * Version: 0.0.2
  * Author: Logovo
  * Text Domain: modern-thumbnails
  * Domain Path: /languages
  * Requires PHP: 7.4
  * Requires at least: 5.0
+ *
+ * ⚠️  IMPORTANT: This plugin requires the PHP Imagick extension to function.
+ *     Without Imagick, the plugin will not work. Please ensure it is installed on your server.
  */
 
 // Prevent direct access

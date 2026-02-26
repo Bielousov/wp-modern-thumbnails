@@ -64,6 +64,25 @@
     font-weight: 700;
 }
 
+/* Critical Requirement Alert */
+.mmt-requirement-alert {
+    border-left: 4px solid #dc3545 !important;
+    background-color: #fef5f5 !important;
+    margin: 20px 0 !important;
+    padding: 12px 15px !important;
+    border-radius: 4px;
+}
+
+.mmt-requirement-alert p {
+    margin: 8px 0;
+    color: #721c24;
+}
+
+.mmt-requirement-alert strong {
+    font-weight: 600;
+    color: #721c24;
+}
+
 /**
  * Toggle Switch Component (Tailwind-style)
  */
