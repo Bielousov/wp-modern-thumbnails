@@ -58,6 +58,14 @@ After activation, visit **Settings → Modern Thumbnails** to:
 * Choose which image sizes to process
 * Enable debug logging for troubleshooting
 
+Note for Copilot users: to have VS Code Chat / GitHub Copilot reference the project's instructions, create a local symlink at the repository root that points to `doc/COPILOT_INSTRUCTIONS.md`, for example:
+
+```
+ln -s doc/COPILOT_INSTRUCTIONS.md .copilot-instructions.md
+```
+
+Important: WordPress.org plugin rules disallow hidden files in plugin packages. Do NOT commit or include `.copilot-instructions.md` (or any hidden files) in your plugin release. Keep the symlink local (add it to `.git/info/exclude` or remove it before creating distribution archives).
+
 == Frequently Asked Questions ==
 
 = Why do I need ImageMagick? =
