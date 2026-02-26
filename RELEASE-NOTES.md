@@ -1,5 +1,42 @@
 # Modern Thumbnails - Release Notes
 
+## Version 0.0.3
+
+**Release Date:** February 25, 2026
+
+### 📚 Documentation & User Experience
+
+#### Comprehensive Setup Guide
+- **Created:** New `REQUIREMENTS.md` file with complete setup instructions
+  - Explains what ImageMagick is and why it's required
+  - Multiple methods to verify Imagick installation
+  - Step-by-step installation guides for cPanel, Plesk, VPS, and command-line
+  - Troubleshooting common issues
+  - Clarifies difference between ImageMagick and GD Library
+
+#### Enhanced UI Warnings & Alerts
+- **Added:** Critical error alert on settings page if Imagick is not installed
+  - Prominently displays at the top of Plugin Settings tab
+  - Directs users to System Status for verification and details
+  - Uses WordPress standard error notice styling
+
+- **Enhanced:** System Status tab with improved Imagick messaging
+  - Imagick row now clearly marked as "REQUIRED" in bold
+  - Detailed description explaining critical nature of the requirement
+  - Alert banner appears only when Imagick is missing (not when installed)
+
+#### Plugin Header & Descriptions
+- **Updated:** Main plugin description to include ImageMagick requirement
+  - Description now explicitly states: "Requires ImageMagick PHP extension"
+  - Header PHPDoc includes prominent warning comment
+
+#### Better Error Prevention
+- Users are now informed immediately (before activation) that ImageMagick is required
+- Clear instructions on where to check and what to do if missing
+- Prevents installation on incompatible hosting
+
+---
+
 ## Version 0.0.2
 
 **Release Date:** February 25, 2026

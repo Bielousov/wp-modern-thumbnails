@@ -18,5 +18,5 @@
  * @return string The plugin version string
  */
 function mmt_get_version() {
-	return defined( 'MMT_PLUGIN_VERSION' ) ? MMT_PLUGIN_VERSION : '0.0.2';
+	return defined( 'MMT_PLUGIN_VERSION' ) ? MMT_PLUGIN_VERSION : '0.0.3';
 }
