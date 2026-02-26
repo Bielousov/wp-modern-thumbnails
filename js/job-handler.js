@@ -32,12 +32,14 @@
     // Static method to get the title based on job type
     window.ThumbnailRegenerationJob.getJobTitle = function(options) {
         var title = 'Regenerating Thumbnails';
-        
+
         if (options.type === 'all') {
             title = 'Regenerating All Thumbnails';
         } else if (options.type === 'size' && options.size) {
             var displayName = options.size === 'Thumbnails' ? 'Thumbnails' : options.size;
             title = 'Regenerating ' + displayName + ' Thumbnails';
+        } else if (options.type === 'restore') {
+            title = 'Restoring WordPress Originals';
         }
         
         return title;
@@ -149,7 +151,7 @@
      * Disable all regenerate buttons while job is running
      */
     window.ThumbnailRegenerationJob.prototype.disableRegenerateButtons = function() {
-        var buttons = document.querySelectorAll('.mmt-regenerate-size, #mmt-regenerate-all');
+        var buttons = document.querySelectorAll('.mmt-regenerate-size, #mmt-regenerate-all, #mmt-restore-originals');
         buttons.forEach(function(btn) {
             btn.disabled = true;
             btn.classList.add('mmt-regenerate-button');
@@ -160,7 +162,7 @@
      * Enable all regenerate buttons when job is done
      */
     window.ThumbnailRegenerationJob.prototype.enableRegenerateButtons = function() {
-        var buttons = document.querySelectorAll('.mmt-regenerate-size, #mmt-regenerate-all');
+        var buttons = document.querySelectorAll('.mmt-regenerate-size, #mmt-regenerate-all, #mmt-restore-originals');
         buttons.forEach(function(btn) {
             btn.disabled = false;
             btn.classList.remove('mmt-regenerate-button');
@@ -218,13 +220,13 @@
         var attachmentId = this.mediaFiles[this.currentIndex];
         var sizeName = this.options.size || null;
         
-        // Prepare AJAX data
+        // Prepare AJAX data. Use restore endpoints if this is a restore job.
         var ajaxData = {
-            action: 'mmt_regenerate_size',
+            action: this.options.type === 'restore' ? 'mmt_restore_queue_process' : 'mmt_regenerate_size',
             nonce: mmtData.nonce,
             attachment_id: attachmentId
         };
-        
+
         if (sizeName) {
             ajaxData.size = sizeName;
         }

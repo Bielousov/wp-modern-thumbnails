@@ -882,6 +882,200 @@ class Ajax {
             wp_send_json_error('Error processing attachment ' . $attachment_id . ': ' . $e->getMessage());
         }
     }
+
+    /**
+     * Initialize restore queue - returns all attachment IDs to process (same list as regenerate)
+     *
+     * @return void
+     */
+    public static function restoreQueueStart() {
+        check_ajax_referer('mmt_regenerate_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Insufficient permissions');
+        }
+
+        // Get all image attachments
+        $attachments = get_posts([
+            'post_type' => 'attachment',
+            'post_mime_type' => 'image',
+            'numberposts' => -1,
+            'post_status' => 'inherit',
+            'fields' => 'ids',
+        ]);
+
+        wp_send_json_success([
+            'attachment_ids' => $attachments,
+            'total_count' => count($attachments),
+            'message' => 'Restore queue initialized with ' . count($attachments) . ' media items',
+        ]);
+    }
+
+    /**
+     * Process a single attachment in the restore queue
+     * Removes WebP/AVIF variants and regenerates WordPress default thumbnails using the GD editor directly.
+     *
+     * @return void
+     */
+    public static function restoreQueueProcess() {
+        check_ajax_referer('mmt_regenerate_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Insufficient permissions');
+        }
+
+        $attachment_id = isset($_POST['attachment_id']) ? intval($_POST['attachment_id']) : 0;
+
+        if (!$attachment_id) {
+            wp_send_json_error('No attachment ID specified');
+        }
+
+        try {
+            $attachment = get_post($attachment_id);
+
+            if (!$attachment || !in_array($attachment->post_mime_type, ['image/jpeg', 'image/png', 'image/gif', 'image/webp'])) {
+                wp_send_json_success([
+                    'attachment_id' => $attachment_id,
+                    'restored' => 0,
+                    'message' => 'Skipped (not an image)',
+                ]);
+            }
+
+            $file = get_attached_file($attachment_id);
+            if (!$file || !file_exists($file)) {
+                wp_send_json_success([
+                    'attachment_id' => $attachment_id,
+                    'restored' => 0,
+                    'message' => 'Skipped (file not found)',
+                ]);
+            }
+
+            $metadata = wp_get_attachment_metadata($attachment_id);
+            if (empty($metadata)) {
+                wp_send_json_success([
+                    'attachment_id' => $attachment_id,
+                    'restored' => 0,
+                    'message' => 'Skipped (no metadata)',
+                ]);
+            }
+
+            $deleted = 0;
+            $restored = 0;
+
+            // Delete WebP/AVIF variants for sizes and full image
+            $candidates = [];
+            // Full-size variants
+            $candidates[] = preg_replace('/\.[^\.]+$/', '.webp', $file);
+            $candidates[] = preg_replace('/\.[^\.]+$/', '.avif', $file);
+
+            if (!empty($metadata['sizes'])) {
+                foreach ($metadata['sizes'] as $size_data) {
+                    $size_file = dirname($file) . '/' . $size_data['file'];
+                    $candidates[] = preg_replace('/\.[^\.]+$/', '.webp', $size_file);
+                    $candidates[] = preg_replace('/\.[^\.]+$/', '.avif', $size_file);
+                }
+            }
+
+            foreach ($candidates as $del_file) {
+                if ($del_file && file_exists($del_file)) {
+                    @wp_delete_file($del_file);
+                    $deleted++;
+                }
+            }
+
+            // Bypass Modern Thumbnails filters: restore metadata to reference original filenames
+            // Do NOT attempt to regenerate using GD here — simply remove modern format files and
+            // update metadata so WordPress will use the original thumbnails (if present).
+            $image_sizes = \ModernMediaThumbnails\ImageSizeManager::getAllImageSizes();
+
+            $attachment_dir = dirname($file);
+            $orig_ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+
+            // Ensure main metadata points to the original uploaded file
+            $metadata['file'] = basename($file);
+
+            $restored = 0;
+
+            if (!empty($metadata['sizes']) && is_array($metadata['sizes'])) {
+                foreach ($metadata['sizes'] as $size_name => &$size_data) {
+                    if (!is_array($size_data) || empty($size_data['file'])) {
+                        continue;
+                    }
+
+                    $size_file_name = $size_data['file'];
+                    $size_base = preg_replace('/\.[^\.]+$/', '', $size_file_name);
+
+                    // First, try to find an existing original-format file for this size
+                    $found = false;
+                    $candidates = [];
+                    $candidates[] = $attachment_dir . '/' . $size_base . '.' . $orig_ext;
+                    foreach (['jpg', 'jpeg', 'png', 'gif'] as $ext) {
+                        $candidates[] = $attachment_dir . '/' . $size_base . '.' . $ext;
+                    }
+
+                    foreach ($candidates as $cand) {
+                        if ($cand && file_exists($cand)) {
+                            $size_data['file'] = basename($cand);
+                            $size_data['mime-type'] = $attachment->post_mime_type ?? ($size_data['mime-type'] ?? null);
+                            $restored++;
+                            $found = true;
+                            break;
+                        }
+                    }
+
+                    if ($found) {
+                        continue;
+                    }
+
+                    // If no original file found, attempt to generate a JPEG for this size using WP_Image_Editor
+                    $width = isset($size_data['width']) ? intval($size_data['width']) : 0;
+                    $height = isset($size_data['height']) ? intval($size_data['height']) : 0;
+                    $crop = isset($size_data['crop']) ? (bool) $size_data['crop'] : false;
+
+                    if ($width && $height) {
+                        try {
+                            $editor = wp_get_image_editor($file);
+                            if (!is_wp_error($editor)) {
+                                // Create a fresh editor instance from original each iteration
+                                $editor = wp_get_image_editor($file);
+                                if (!is_wp_error($editor)) {
+                                    $resized = $editor->resize($width, $height, $crop);
+                                    if (!is_wp_error($resized)) {
+                                        $target_jpg = $attachment_dir . '/' . $size_base . '.jpg';
+                                        wp_mkdir_p(dirname($target_jpg));
+                                        $saved = $editor->save($target_jpg);
+                                        if (!is_wp_error($saved) && !empty($saved['path']) && file_exists($saved['path'])) {
+                                            $size_data['file'] = basename($saved['path']);
+                                            $size_data['mime-type'] = 'image/jpeg';
+                                            $restored++;
+                                        }
+                                    }
+                                    if (method_exists($editor, 'clear')) {
+                                        $editor->clear();
+                                    }
+                                }
+                            }
+                        } catch (\Exception $e) {
+                            // Ignore generation errors for this size
+                        }
+                    }
+                }
+                unset($size_data);
+            }
+
+            // Save updated metadata to database
+            wp_update_attachment_metadata($attachment_id, $metadata);
+
+            wp_send_json_success([
+                'attachment_id' => $attachment_id,
+                'deleted' => $deleted,
+                'restored' => $restored,
+                'message' => 'Restore completed (deleted ' . $deleted . ' files, regenerated or restored ' . $restored . ' sizes)'
+            ]);
+        } catch (\Exception $e) {
+            wp_send_json_error('Error restoring attachment ' . $attachment_id . ': ' . $e->getMessage());
+        }
+    }
     
     /**
      * Handle AJAX regeneration of a single attachment (for bulk actions)
@@ -1134,6 +1328,8 @@ class Ajax {
         add_action('wp_ajax_mmt_regenerate_queue_process', [self::class, 'regenerateQueueProcess']);
         add_action('wp_ajax_mmt_regenerate_queue_size_start', [self::class, 'regenerateQueueSizeStart']);
         add_action('wp_ajax_mmt_regenerate_queue_process_size', [self::class, 'regenerateQueueProcessSize']);
+        add_action('wp_ajax_mmt_restore_queue_start', [self::class, 'restoreQueueStart']);
+        add_action('wp_ajax_mmt_restore_queue_process', [self::class, 'restoreQueueProcess']);
         add_action('wp_ajax_mmt_dismiss_nginx_notice', [self::class, 'dismissNginxNotice']);
         add_action('wp_ajax_mmt_dismiss_apache_notice', [self::class, 'dismissApacheNotice']);
     }

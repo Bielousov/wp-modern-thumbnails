@@ -234,13 +234,43 @@ class SettingsPage {
             <?php if ($active_tab === 'sizes'): ?>
                 <div class="tab-content">
                     <h2><?php esc_html_e( 'Theme Image Sizes', 'modern-thumbnails' ); ?></h2>
-                    <p><?php esc_html_e( 'The following image sizes are defined in your theme and will be generated as WebP:', 'modern-thumbnails' ); ?></p>
-                    
+
+
+                    <div class="mmt-notice notice notice-info">
+                        <p>
+                            <?php
+                            echo wp_kses_post( sprintf(
+                                /* translators: %1$s is an example filename (my-image-300x200.webp) */
+                                esc_html__( 'When you upload new images or regenerate thumbnails, Modern Thumbnails creates WebP versions for each image size and, if enabled, matching JPEG/PNG originals (using ImageMagick). Generated files are saved in your uploads folder using the same WordPress naming convention (for example: %1$s).', 'modern-thumbnails' ),
+                                '<code>' . esc_html( 'my-image-300x200.webp' ) . '</code>'
+                            ) );
+                            ?>
+                        </p>
+
+                        <p>
+                            <?php
+                            $mmt_regenerate_url = 'https://wordpress.org/plugins/regenerate-thumbnails/';
+                            echo wp_kses_post( sprintf(
+                                /* translators: %1$s: regenerate plugin link, %2$s: restore originals label */
+                                esc_html__( 'The plugin updates attachment metadata so WordPress can serve WebP where supported. Generated WebP/AVIF files remain on disk if the plugin is disabled, as well as the attachments metadata, so WordPress will continue using the WebP thumbnails for those images, but will no longer generate them for the new ones. To restore original thumbnails, use the %1$s plugin or the %2$s tool (coming soon).', 'modern-thumbnails' ),
+                                '<a href="' . esc_url( $mmt_regenerate_url ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Regenerate Thumbnails', 'modern-thumbnails' ) . '</a>',
+                                '<strong>' . esc_html__( 'Restore Originals', 'modern-thumbnails' ) . '</strong>'
+                            ) );
+                            ?>
+                        </p>
+                    </div>
+
                     <div style="margin-bottom: 20px;">
                         <button id="mmt-regenerate-all" class="button button-primary">
                             <?php esc_html_e( 'Regenerate All Thumbnails', 'modern-thumbnails' ); ?>
                         </button>
+
+                        <button id="mmt-restore-originals" class="button mmt-button-restore" style="margin-left:8px;">
+                            <?php esc_html_e( 'Restore WordPress Original Thumbnails', 'modern-thumbnails' ); ?>
+                        </button>
                     </div>
+
+                    <p><?php esc_html_e( 'The following image sizes are defined in your theme:', 'modern-thumbnails' ); ?></p>
                     
                     <table class="wp-list-table widefat striped mmt-image-sizes-table">
                         <thead>

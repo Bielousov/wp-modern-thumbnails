@@ -143,6 +143,21 @@ jQuery(function ($) {
         });
         job.start();
     });
+
+    // Restore originals - prompt and start restore job
+    $('#mmt-restore-originals').on('click', function (e) {
+        e.preventDefault();
+
+        var confirmMsg = 'This will remove all WebP and AVIF thumbnails and regenerate WordPress default thumbnails using the GD library. Do you want to proceed?';
+        if (!confirm(confirmMsg)) {
+            return;
+        }
+
+        var job = new ThumbnailRegenerationJob({
+            type: 'restore'
+        });
+        job.start();
+    });
     
     // Regenerate individual size thumbnails - create a job
     $('.mmt-regenerate-size').on('click', function (e) {
