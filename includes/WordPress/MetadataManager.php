@@ -8,6 +8,10 @@
 
 namespace ModernMediaThumbnails\WordPress;
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 use ModernMediaThumbnails\FormatManager;
 
 class MetadataManager {

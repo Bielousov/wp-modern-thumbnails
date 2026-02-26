@@ -8,6 +8,10 @@
  * @since   0.0.2
  */
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 /**
  * Get the plugin version
  *
@@ -17,6 +21,7 @@
  *
  * @return string The plugin version string
  */
+// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound -- Function is properly prefixed with mmt_
 function mmt_get_version() {
 	return defined( 'MMT_PLUGIN_VERSION' ) ? MMT_PLUGIN_VERSION : '0.0.3';
 }

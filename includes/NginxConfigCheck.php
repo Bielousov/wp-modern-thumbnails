@@ -59,7 +59,8 @@ class NginxConfigCheck {
      */
     public static function isRunningOnNginx() {
         // Check SERVER_SOFTWARE variable
-        if (isset($_SERVER['SERVER_SOFTWARE']) && stripos($_SERVER['SERVER_SOFTWARE'], 'nginx') !== false) {
+        $server_software = isset($_SERVER['SERVER_SOFTWARE']) ? sanitize_text_field(wp_unslash($_SERVER['SERVER_SOFTWARE'])) : '';
+        if ($server_software && stripos($server_software, 'nginx') !== false) {
             return true;
         }
         

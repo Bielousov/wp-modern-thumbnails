@@ -7,6 +7,10 @@
 
 namespace ModernMediaThumbnails\Admin;
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 use ModernMediaThumbnails\Settings;
 
 class MediaSettings {
@@ -91,7 +95,7 @@ class MediaSettings {
         
         // Display the enabled formats
         echo '<div class="mmt-media-formats-list">';
-        echo implode(' ', $enabled_formats);
+        echo wp_kses_post( implode( ' ', $enabled_formats ) );
         echo '</div>';
         
         // Provide link to plugin settings

@@ -7,6 +7,10 @@
 
 namespace ModernMediaThumbnails\WordPress;
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 use ModernMediaThumbnails\ImageSizeManager;
 use ModernMediaThumbnails\FormatManager;
 use ModernMediaThumbnails\Settings;
@@ -39,7 +43,6 @@ class UploadHooks {
         try {
             $imagick = new \Imagick($source_path);
         } catch (\Exception $e) {
-            error_log('MMT Upload Hook: Unable to load source image: ' . $e->getMessage());
             return $metadata;
         }
         
@@ -127,7 +130,7 @@ class UploadHooks {
                         // Delete original if not keeping it
                         if (!FormatManager::shouldKeepOriginal()) {
                             if (file_exists($size_file)) {
-                                @unlink($size_file);
+                                wp_delete_file($size_file);
                             }
                         }
                     }

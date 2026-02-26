@@ -48,7 +48,6 @@ class RegenerationManager {
             try {
                 $imagick = new \Imagick($file);
             } catch (\Exception $e) {
-                error_log('MMT RegenerationManager: Unable to load image: ' . $e->getMessage());
                 continue;
             }
             
@@ -164,7 +163,7 @@ class RegenerationManager {
             // Delete original if not keeping it
             if (!FormatManager::shouldKeepOriginal()) {
                 if (file_exists($size_file)) {
-                    @unlink($size_file);
+                    wp_delete_file($size_file);
                 }
             }
         }

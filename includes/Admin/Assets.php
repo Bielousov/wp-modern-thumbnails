@@ -7,6 +7,10 @@
 
 namespace ModernMediaThumbnails\Admin;
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 class Assets {
     
     /**
@@ -16,16 +20,13 @@ class Assets {
      * @return void
      */
     public static function enqueue($hook) {
-        // Debug: Log which hook we're receiving
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('MMT Assets enqueue called with hook: ' . $hook);
-        }
-        
         // Load on settings pages - both the specific page and options-general page
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Query parameter is for internal navigation only
+        $page = isset($_GET['page']) ? sanitize_key(wp_unslash($_GET['page'])) : '';
         $should_load_full = (
             $hook === 'settings_page_mmt-settings' ||
             $hook === 'toplevel_page_mmt-settings' ||
-            (isset($_GET['page']) && $_GET['page'] === 'mmt-settings')
+            $page === 'mmt-settings'
         );
         
         // Load minimal CSS on media settings page for the formats display

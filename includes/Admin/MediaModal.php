@@ -7,6 +7,10 @@
 
 namespace ModernMediaThumbnails\Admin;
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 use ModernMediaThumbnails\FormatManager;
 
 class MediaModal {

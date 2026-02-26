@@ -64,7 +64,8 @@ class ApacheConfigCheck {
     public static function isRunningOnApache() {
         // Check SERVER_SOFTWARE variable
         if (isset($_SERVER['SERVER_SOFTWARE'])) {
-            if (stripos($_SERVER['SERVER_SOFTWARE'], 'Apache') !== false) {
+            $server_software = sanitize_text_field(wp_unslash($_SERVER['SERVER_SOFTWARE']));
+            if (stripos($server_software, 'Apache') !== false) {
                 return true;
             }
         }
@@ -78,7 +79,11 @@ class ApacheConfigCheck {
         if (isset($_SERVER['SCRIPT_NAME']) && isset($_SERVER['DOCUMENT_ROOT'])) {
             // More likely to be Apache if both are set
             // But also check it's not nginx (which also sets these)
-            if (!isset($_SERVER['SERVER_SOFTWARE']) || stripos($_SERVER['SERVER_SOFTWARE'], 'nginx') === false) {
+            if (!isset($_SERVER['SERVER_SOFTWARE'])) {
+                return true;
+            }
+            $server_software = sanitize_text_field(wp_unslash($_SERVER['SERVER_SOFTWARE']));
+            if (stripos($server_software, 'nginx') === false) {
                 return true;
             }
         }

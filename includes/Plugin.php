@@ -10,6 +10,10 @@
 
 namespace ModernMediaThumbnails;
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 use ModernMediaThumbnails\WordPress\UploadHooks;
 use ModernMediaThumbnails\WordPress\MetadataManager;
 use ModernMediaThumbnails\WordPress\DeletionHandler;
@@ -50,24 +54,6 @@ class Plugin {
         
         // Register plugin action links
         add_filter( 'plugin_action_links_modern-thumbnails/index.php', [ self::class, 'add_plugin_action_links' ] );
-        
-        // Load text domain
-        add_action( 'plugins_loaded', [ self::class, 'load_text_domain' ] );
-    }
-    
-    /**
-     * Load plugin text domain for translations.
-     * 
-     * @since 0.0.1
-     * 
-     * @return void
-     */
-    public static function load_text_domain() {
-        load_plugin_textdomain(
-            'modern-thumbnails',
-            false,
-            dirname( dirname( plugin_basename( __FILE__ ) ) ) . '/languages'
-        );
     }
     
     /**

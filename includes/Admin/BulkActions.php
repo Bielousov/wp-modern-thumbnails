@@ -7,6 +7,10 @@
 
 namespace ModernMediaThumbnails\Admin;
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 use ModernMediaThumbnails\ImageSizeManager;
 
 class BulkActions {
@@ -48,8 +52,6 @@ class BulkActions {
         // Don't process server-side. The JavaScript will handle it via AJAX queue.
         // Just return the redirect URL unchanged, and let the JavaScript handle the processing.
         // This allows the AJAX queue to prevent this from running and show loading states.
-        
-        error_log('MMT: handleBulkAction called (should be prevented by JavaScript)');
         
         // Return redirect without processing - let AJAX handle it
         return $redirect_url;

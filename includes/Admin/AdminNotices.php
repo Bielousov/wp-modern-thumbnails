@@ -7,6 +7,10 @@
 
 namespace ModernMediaThumbnails\Admin;
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 use ModernMediaThumbnails\SystemCheck;
 use ModernMediaThumbnails\NginxConfigCheck;
 use ModernMediaThumbnails\ApacheConfigCheck;
@@ -68,7 +72,7 @@ class AdminNotices {
                         type: 'POST',
                         data: {
                             action: 'mmt_dismiss_nginx_notice',
-                            nonce: '<?php echo wp_create_nonce('mmt_dismiss_notice'); ?>'
+                            nonce: '<?php echo esc_attr( wp_create_nonce( 'mmt_dismiss_notice' ) ); ?>'
                         }
                     });
                 });
@@ -97,7 +101,7 @@ class AdminNotices {
                         type: 'POST',
                         data: {
                             action: 'mmt_dismiss_apache_notice',
-                            nonce: '<?php echo wp_create_nonce('mmt_dismiss_notice'); ?>'
+                            nonce: '<?php echo esc_attr( wp_create_nonce( 'mmt_dismiss_notice' ) ); ?>'
                         }
                     });
                 });
@@ -114,13 +118,17 @@ class AdminNotices {
      */
     private static function displayBulkActionNotices() {
         // Check for bulk action results in query string
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Query parameters set by plugin's own redirects
         if (!isset($_GET['mmt_regenerated'])) {
             return;
         }
         
-        $regenerated = intval($_GET['mmt_regenerated']);
-        $errors = isset($_GET['mmt_errors']) ? intval($_GET['mmt_errors']) : 0;
-        $total = isset($_GET['mmt_total']) ? intval($_GET['mmt_total']) : 0;
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Query parameters set by plugin's own redirects
+        $regenerated = intval(wp_unslash($_GET['mmt_regenerated']));
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Query parameters set by plugin's own redirects
+        $errors = isset($_GET['mmt_errors']) ? intval(wp_unslash($_GET['mmt_errors'])) : 0;
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Query parameters set by plugin's own redirects
+        $total = isset($_GET['mmt_total']) ? intval(wp_unslash($_GET['mmt_total'])) : 0;
         
         if ($regenerated > 0) {
             ?>
@@ -128,9 +136,10 @@ class AdminNotices {
                 <p>
                     <?php
                     printf(
-                        esc_html__( 'Successfully regenerated thumbnails for %d of %d image(s).', 'modern-thumbnails' ),
-                        $regenerated,
-                        $total
+                        /* translators: %1$d is the number of successfully regenerated thumbnails, %2$d is the total number of images */
+                        esc_html__( 'Successfully regenerated thumbnails for %1$d of %2$d image(s).', 'modern-thumbnails' ),
+                        intval( $regenerated ),
+                        intval( $total )
                     );
                     ?>
                 </p>
@@ -144,8 +153,9 @@ class AdminNotices {
                 <p>
                     <?php
                     printf(
+                        /* translators: %d is the number of images that failed to regenerate */
                         esc_html__( 'Failed to regenerate thumbnails for %d image(s). They may not be valid image files.', 'modern-thumbnails' ),
-                        $errors
+                        intval( $errors )
                     );
                     ?>
                 </p>

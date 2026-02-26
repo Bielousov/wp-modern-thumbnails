@@ -87,7 +87,6 @@ class ThumbnailGenerator {
             
             return $result;
         } catch (\Exception $e) {
-            error_log('MMT ' . strtoupper($format) . ' Generation Error: ' . $e->getMessage());
             return false;
         }
     }

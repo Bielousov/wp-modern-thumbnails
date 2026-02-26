@@ -49,7 +49,8 @@ class ImageSizeManager {
             $size_names[$name] = $name; // Default to the slug if no custom name is found
         }
         
-        // Apply WordPress filter to get user-friendly names
+        // Apply WordPress core filter to get user-friendly names
+        // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
         $size_names = apply_filters('image_size_names_choose', $size_names);
         
         return $size_names;

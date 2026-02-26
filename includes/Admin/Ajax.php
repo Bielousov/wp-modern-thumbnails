@@ -7,6 +7,10 @@
 
 namespace ModernMediaThumbnails\Admin;
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 use ModernMediaThumbnails\FormatManager;
 use ModernMediaThumbnails\Settings;
 use ModernMediaThumbnails\WordPress\RegenerationManager;
@@ -50,7 +54,7 @@ class Ajax {
             wp_send_json_error('Insufficient permissions');
         }
         
-        $size_name = isset($_POST['size']) ? sanitize_text_field($_POST['size']) : null;
+        $size_name = isset($_POST['size']) ? sanitize_text_field(wp_unslash($_POST['size'])) : null;
         $attachment_id = isset($_POST['attachment_id']) ? intval($_POST['attachment_id']) : 0;
         
         // If attachment_id is provided, regenerate only that specific attachment
@@ -180,8 +184,7 @@ class Ajax {
                 }
             }
         } catch (\Exception $e) {
-            // Log error for debugging
-            error_log('Error regenerating attachment ' . $attachment_id . ': ' . $e->getMessage());
+            // Silently handle error 
         }
         
         return $regenerated;
@@ -272,7 +275,7 @@ class Ajax {
         foreach ($formats as $format) {
             $file = $size_base . '.' . $format;
             if (file_exists($file)) {
-                @unlink($file);
+                wp_delete_file($file);
             }
         }
     }
@@ -289,7 +292,11 @@ class Ajax {
             wp_send_json_error('Insufficient permissions');
         }
         
-        $settings = isset($_POST['settings']) ? (array)$_POST['settings'] : [];
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- nonce verified via check_ajax_referer
+        $settings = isset($_POST['settings']) ? (array)wp_unslash($_POST['settings']) : [];
+        
+        // Sanitize settings array - cast values to appropriate types (sanitization happens in updateSettings)
+        $settings = array_map('sanitize_text_field', $settings);
         
         // Update settings with actual values (convert 1/0 to true/false and sanitize quality values)
         FormatManager::updateSettings([
@@ -380,7 +387,7 @@ class Ajax {
             }
             
         } catch (\Exception $e) {
-            error_log('Error detecting formats: ' . $e->getMessage());
+            // Silently handle error
         }
         
         return $formats;
@@ -657,7 +664,7 @@ class Ajax {
                     // Delete original if not keeping it
                     if (!FormatManager::shouldKeepOriginal()) {
                         if (file_exists($size_file)) {
-                            @unlink($size_file);
+                            wp_delete_file($size_file);
                         }
                     }
                 }
@@ -695,7 +702,7 @@ class Ajax {
             wp_send_json_error('Insufficient permissions');
         }
         
-        $size_name = isset($_POST['size']) ? sanitize_text_field($_POST['size']) : null;
+        $size_name = isset($_POST['size']) ? sanitize_text_field(wp_unslash($_POST['size'])) : null;
         
         if (!$size_name) {
             wp_send_json_error('No size specified');
@@ -731,7 +738,7 @@ class Ajax {
         }
         
         $attachment_id = isset($_POST['attachment_id']) ? intval($_POST['attachment_id']) : 0;
-        $size_name = isset($_POST['size']) ? sanitize_text_field($_POST['size']) : null;
+        $size_name = isset($_POST['size']) ? sanitize_text_field(wp_unslash($_POST['size'])) : null;
         
         if (!$attachment_id || !$size_name) {
             wp_send_json_error('No attachment ID or size specified');
@@ -850,7 +857,7 @@ class Ajax {
                     // Delete original if not keeping it
                     if (!FormatManager::shouldKeepOriginal()) {
                         if (file_exists($size_file)) {
-                            @unlink($size_file);
+                            wp_delete_file($size_file);
                         }
                     }
                 }
@@ -999,7 +1006,6 @@ class Ajax {
                 'thumbnails' => $thumbnails
             ]);
         } catch (\Exception $e) {
-            error_log('Error regenerating attachment ' . $post_id . ': ' . $e->getMessage());
             wp_send_json_error('Error regenerating attachment');
         }
     }
@@ -1016,18 +1022,25 @@ class Ajax {
             wp_send_json_error('No image URL provided');
         }
         
-        $image_url = sanitize_url($_POST['image_url']);
+        $image_url = sanitize_url(wp_unslash($_POST['image_url']));
         
         // Use WordPress built-in function to get attachment ID from URL
         $attachment_id = attachment_url_to_postid($image_url);
         
         if (!$attachment_id) {
-            // Try alternative method: query the database directly
+            // Try alternative method: query the database directly with caching
             global $wpdb;
-            $attachment_id = $wpdb->get_var($wpdb->prepare(
-                "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'attachment' AND guid = %s",
-                $image_url
-            ));
+            $cache_key = 'mmt_attachment_guid_' . md5($image_url);
+            $attachment_id = wp_cache_get($cache_key);
+            
+            if (false === $attachment_id) {
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Cached with wp_cache
+                $attachment_id = $wpdb->get_var($wpdb->prepare(
+                    "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'attachment' AND guid = %s",
+                    $image_url
+                ));
+                wp_cache_set($cache_key, $attachment_id, '', 3600); // Cache for 1 hour
+            }
         }
         
         // If still not found, try to extract base filename and search for that
@@ -1039,16 +1052,23 @@ class Ajax {
             // Remove dimensions suffix (e.g., -1200x800 or -1920x1280)
             $base_name_no_dims = preg_replace('/-\d+x\d+$/', '', $basename);
             
-            // Search for attachment with this base name
+            // Search for attachment with this base name using cache
             global $wpdb;
-            $attachment_id = $wpdb->get_var($wpdb->prepare(
-                "SELECT ID FROM {$wpdb->posts} 
-                 WHERE post_type = 'attachment' 
-                 AND (guid LIKE %s OR post_title LIKE %s OR guid LIKE %s)",
-                '%' . $base_name_no_dims . '%',
-                '%' . $base_name_no_dims . '%',
-                '%' . $basename . '%'
-            ));
+            $cache_key = 'mmt_attachment_basename_' . md5($base_name_no_dims);
+            $attachment_id = wp_cache_get($cache_key);
+            
+            if (false === $attachment_id) {
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Cached with wp_cache
+                $attachment_id = $wpdb->get_var($wpdb->prepare(
+                    "SELECT ID FROM {$wpdb->posts} 
+                     WHERE post_type = 'attachment' 
+                     AND (guid LIKE %s OR post_title LIKE %s OR guid LIKE %s)",
+                    '%' . $base_name_no_dims . '%',
+                    '%' . $base_name_no_dims . '%',
+                    '%' . $basename . '%'
+                ));
+                wp_cache_set($cache_key, $attachment_id, '', 3600); // Cache for 1 hour
+            }
         }
         
         // Try original file format if webp/avif (remove format suffix)
@@ -1065,12 +1085,19 @@ class Ajax {
                     break;
                 }
                 
-                // Also try database search
+                // Also try database search with caching
                 global $wpdb;
-                $attachment_id = $wpdb->get_var($wpdb->prepare(
-                    "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'attachment' AND guid LIKE %s",
-                    '%' . $base_name_no_dims . $ext
-                ));
+                $cache_key = 'mmt_attachment_ext_' . md5($base_name_no_dims . $ext);
+                $attachment_id = wp_cache_get($cache_key);
+                
+                if (false === $attachment_id) {
+                    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Cached with wp_cache
+                    $attachment_id = $wpdb->get_var($wpdb->prepare(
+                        "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'attachment' AND guid LIKE %s",
+                        '%' . $base_name_no_dims . $ext
+                    ));
+                    wp_cache_set($cache_key, $attachment_id, '', 3600); // Cache for 1 hour
+                }
                 if ($attachment_id) {
                     break;
                 }
@@ -1117,8 +1144,9 @@ class Ajax {
      * @return void
      */
     public static function dismissNginxNotice() {
-        // Verify nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mmt_dismiss_notice')) {
+        // Verify nonce (already sanitized via wp_verify_nonce)
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- nonce is verified via wp_verify_nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(wp_unslash($_POST['nonce']), 'mmt_dismiss_notice')) {
             wp_send_json_error(['message' => 'Invalid nonce']);
         }
         
@@ -1140,8 +1168,9 @@ class Ajax {
      * @return void
      */
     public static function dismissApacheNotice() {
-        // Verify nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mmt_dismiss_notice')) {
+        // Verify nonce (already sanitized via wp_verify_nonce)
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- nonce is verified via wp_verify_nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(wp_unslash($_POST['nonce']), 'mmt_dismiss_notice')) {
             wp_send_json_error(['message' => 'Invalid nonce']);
         }
         

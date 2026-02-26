@@ -7,6 +7,10 @@
 
 namespace ModernMediaThumbnails\Admin;
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 use ModernMediaThumbnails\ImageSizeManager;
 use ModernMediaThumbnails\FormatManager;
 use ModernMediaThumbnails\Settings;
@@ -23,7 +27,7 @@ class SettingsPage {
      */
     public static function render() {
         if (!current_user_can('manage_options')) {
-            wp_die(__('You do not have permissions to access this page.'));
+            wp_die(esc_html__('You do not have permissions to access this page.', 'modern-thumbnails'));
         }
         
         $image_sizes = ImageSizeManager::getAllImageSizes();
@@ -45,7 +49,8 @@ class SettingsPage {
         }
         
         // Get active tab from query parameter, default to 'sizes'
-        $active_tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'sizes';
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Query parameter is for internal navigation only
+        $active_tab = isset($_GET['tab']) ? sanitize_text_field(wp_unslash($_GET['tab'])) : 'sizes';
         ?>
         <div class="wrap">
             <h1><?php esc_html_e( 'Modern Thumbnails', 'modern-thumbnails' ); ?></h1>
@@ -171,12 +176,13 @@ class SettingsPage {
                                                 $thumb_w = get_option( 'thumbnail_size_w' );
                                                 $thumb_h = get_option( 'thumbnail_size_h' );
                                                 $thumb_label = sprintf(
-                                                    esc_html__( 'Keep EXIF for post thumbnails (%dx%d)', 'modern-thumbnails' ),
+                                                    /* translators: %1$d and %2$d are width and height dimensions of post thumbnails in pixels */
+                                                    esc_html__( 'Keep EXIF for post thumbnails (%1$d×%2$d)', 'modern-thumbnails' ),
                                                     intval( $thumb_w ),
                                                     intval( $thumb_h )
                                                 );
                                             ?>
-                                            <span class="mmt-checkbox-label"><?php echo $thumb_label; ?></span>
+                                            <span class="mmt-checkbox-label"><?php echo esc_html( $thumb_label ); ?></span>
                                         </label>
                                     </div>
                                 <?php endif; ?>
@@ -398,19 +404,25 @@ class SettingsPage {
                                         if (NginxConfigCheck::isRunningOnNginx()) {
                                             echo '<span style="color: green;">✓ Nginx</span>';
                                             if (!empty($_SERVER['SERVER_SOFTWARE'])) {
-                                                echo ' <small style="color: #666;">(' . esc_html($_SERVER['SERVER_SOFTWARE']) . ')</small>';
+                                                // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Sanitized below
+                                                $server_software = sanitize_text_field(wp_unslash($_SERVER['SERVER_SOFTWARE']));
+                                                echo ' <small style="color: #666;">(' . esc_html($server_software) . ')</small>';
                                             }
                                         } elseif (ApacheConfigCheck::isRunningOnApache()) {
                                             echo '<span style="color: green;">✓ Apache</span>';
                                             if (function_exists('apache_get_version')) {
                                                 echo ' <small style="color: #666;">(' . esc_html(apache_get_version()) . ')</small>';
                                             } elseif (!empty($_SERVER['SERVER_SOFTWARE'])) {
-                                                echo ' <small style="color: #666;">(' . esc_html($_SERVER['SERVER_SOFTWARE']) . ')</small>';
+                                                // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Sanitized below
+                                                $server_software = sanitize_text_field(wp_unslash($_SERVER['SERVER_SOFTWARE']));
+                                                echo ' <small style="color: #666;">(' . esc_html($server_software) . ')</small>';
                                             }
                                         } else {
                                             echo '<span style="color: #999;">Unknown</span>';
                                             if (!empty($_SERVER['SERVER_SOFTWARE'])) {
-                                                echo ' <small style="color: #666;">(' . esc_html($_SERVER['SERVER_SOFTWARE']) . ')</small>';
+                                                // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Sanitized below
+                                                $server_software = sanitize_text_field(wp_unslash($_SERVER['SERVER_SOFTWARE']));
+                                                echo ' <small style="color: #666;">(' . esc_html($server_software) . ')</small>';
                                             }
                                         }
                                     ?>
@@ -423,9 +435,9 @@ class SettingsPage {
                                 <td>
                                     <?php 
                                         if (NginxConfigCheck::isNginxConfigured()) {
-                                            echo '<span style="color: green;">✓ ' . esc_html__('Configured', 'modern-media-thumbnails') . '</span>';
+                                            echo '<span style="color: green;">✓ ' . esc_html__('Configured', 'modern-thumbnails') . '</span>';
                                         } else {
-                                            echo '<span style="color: orange;">⚠ ' . esc_html__('Not Configured', 'modern-media-thumbnails') . '</span>';
+                                            echo '<span style="color: orange;">⚠ ' . esc_html__('Not Configured', 'modern-thumbnails') . '</span>';
                                         }
                                     ?>
                                 </td>
@@ -445,7 +457,7 @@ class SettingsPage {
                                         }
                                     ?>
                                 </td>
-                                <td><?php esc_html_e('Automatic serving of AVIF or Legacy formats based on browser support via .htaccess. Requires mod_rewrite. May further improve page load speed by up to 25-35% for compatible browsers.', 'modern-media-thumbnails'); ?> <a href="#" class="mmt-config-view-link" data-config="apache"><?php esc_html_e('View Configuration', 'modern-media-thumbnails'); ?></a></td>
+                                <td><?php esc_html_e('Automatic serving of AVIF or Legacy formats based on browser support via .htaccess. Requires mod_rewrite. May further improve page load speed by up to 25-35% for compatible browsers.', 'modern-thumbnails'); ?> <a href="#" class="mmt-config-view-link" data-config="apache"><?php esc_html_e('View Configuration', 'modern-thumbnails'); ?></a></td>
                             </tr>
                             <?php endif; ?>
                         </tbody>
@@ -477,9 +489,9 @@ class SettingsPage {
                                 <td><?php esc_html_e( 'Disk space occupied by all thumbnail variants.', 'modern-thumbnails' ); ?></td>
                             </tr>
                             <tr data-stat="total-size" style="background-color: #f0f0f0; font-weight: bold;">
-                                <td><strong><?php esc_html_e('Total Media Size', 'modern-media-thumbnails'); ?></strong></td>
+                                <td><strong><?php esc_html_e('Total Media Size', 'modern-thumbnails'); ?></strong></td>
                                 <td class="mmt-stat-value"><span class="mmt-skeleton mmt-skeleton-text" style="width: 95px;"></span></td>
-                                <td><?php esc_html_e('Total disk space occupied by all media files.', 'modern-media-thumbnails'); ?></td>
+                                <td><?php esc_html_e('Total disk space occupied by all media files.', 'modern-thumbnails'); ?></td>
                             </tr>
                         </tbody>
                     </table>
@@ -496,41 +508,41 @@ class SettingsPage {
                     
                     <!-- Nginx Configuration -->
                     <div id="mmt-config-nginx" style="display: none;">
-                        <p><?php esc_html_e('To enable automatic serving of optimized AVIF and WebP formats on nginx, add this configuration to your server block:', 'modern-media-thumbnails'); ?></p>
-                        <p><strong><?php esc_html_e('File location:', 'modern-media-thumbnails'); ?></strong> <code>/etc/nginx/sites-enabled/default</code> <?php esc_html_e('or similar', 'modern-media-thumbnails'); ?></p>
-                        <p><small><?php esc_html_e('After adding this configuration, reload nginx with: sudo systemctl reload nginx', 'modern-media-thumbnails'); ?></small></p>
-                        <p><small style="color: #d63638;"><strong><?php esc_html_e('Important:', 'modern-media-thumbnails'); ?></strong> <?php esc_html_e('Backup your existing nginx configuration file before making changes.', 'modern-media-thumbnails'); ?></small></p>
+                        <p><?php esc_html_e('To enable automatic serving of optimized AVIF and WebP formats on nginx, add this configuration to your server block:', 'modern-thumbnails'); ?></p>
+                        <p><strong><?php esc_html_e('File location:', 'modern-thumbnails'); ?></strong> <code>/etc/nginx/sites-enabled/default</code> <?php esc_html_e('or similar', 'modern-thumbnails'); ?></p>
+                        <p><small><?php esc_html_e('After adding this configuration, reload nginx with: sudo systemctl reload nginx', 'modern-thumbnails'); ?></small></p>
+                        <p><small style="color: #d63638;"><strong><?php esc_html_e('Important:', 'modern-thumbnails'); ?></strong> <?php esc_html_e('Backup your existing nginx configuration file before making changes.', 'modern-thumbnails'); ?></small></p>
                         <div class="mmt-config-code-block">
                             <pre class="mmt-config-code"><?php 
                                 if (class_exists('ModernMediaThumbnails\\NginxConfigCheck')) {
                                     echo esc_html(NginxConfigCheck::getConfigurationSnippet());
                                 } else {
-                                    echo esc_html(__("Configuration not available. Please check the plugin installation.", 'modern-media-thumbnails'));
+                                    echo esc_html(__("Configuration not available. Please check the plugin installation.", 'modern-thumbnails'));
                                 }
                             ?></pre>
                         </div>
                         <div class="mmt-config-modal-actions">
-                            <button class="mmt-config-copy-btn" id="mmt-copy-nginx"><?php esc_html_e('Copy Code', 'modern-media-thumbnails'); ?></button>
+                            <button class="mmt-config-copy-btn" id="mmt-copy-nginx"><?php esc_html_e('Copy Code', 'modern-thumbnails'); ?></button>
                         </div>
                     </div>
                     
                     <!-- Apache Configuration -->
                     <div id="mmt-config-apache" style="display: none;">
-                        <p><?php esc_html_e('To enable automatic serving of optimized AVIF and WebP formats on Apache, add this configuration to your root .htaccess file:', 'modern-media-thumbnails'); ?></p>
-                        <p><strong><?php esc_html_e('File location:', 'modern-media-thumbnails'); ?></strong> <code><?php echo esc_html(ABSPATH . '.htaccess'); ?></code></p>
-                        <p><small><?php esc_html_e('This feature requires Apache mod_rewrite to be enabled. If mod_rewrite is not available, your site will continue to work normally—this configuration simply won\'t apply.', 'modern-media-thumbnails'); ?></small></p>
-                        <p><small style="color: #d63638;"><strong><?php esc_html_e('Important:', 'modern-media-thumbnails'); ?></strong> <?php esc_html_e('Backup your existing .htaccess file before making changes. If something goes wrong, the backup allows you to restore it quickly.', 'modern-media-thumbnails'); ?></small></p>
+                        <p><?php esc_html_e('To enable automatic serving of optimized AVIF and WebP formats on Apache, add this configuration to your root .htaccess file:', 'modern-thumbnails'); ?></p>
+                        <p><strong><?php esc_html_e('File location:', 'modern-thumbnails'); ?></strong> <code><?php echo esc_html(ABSPATH . '.htaccess'); ?></code></p>
+                        <p><small><?php esc_html_e('This feature requires Apache mod_rewrite to be enabled. If mod_rewrite is not available, your site will continue to work normally—this configuration simply won\'t apply.', 'modern-thumbnails'); ?></small></p>
+                        <p><small style="color: #d63638;"><strong><?php esc_html_e('Important:', 'modern-thumbnails'); ?></strong> <?php esc_html_e('Backup your existing .htaccess file before making changes. If something goes wrong, the backup allows you to restore it quickly.', 'modern-thumbnails'); ?></small></p>
                         <div class="mmt-config-code-block">
                             <pre class="mmt-config-code"><?php 
                                 if (class_exists('ModernMediaThumbnails\\ApacheConfigCheck')) {
                                     echo esc_html(ApacheConfigCheck::getConfigurationSnippet());
                                 } else {
-                                    echo esc_html(__("Configuration not available. Please check the plugin installation.", 'modern-media-thumbnails'));
+                                    echo esc_html(__("Configuration not available. Please check the plugin installation.", 'modern-thumbnails'));
                                 }
                             ?></pre>
                         </div>
                         <div class="mmt-config-modal-actions">
-                            <button class="mmt-config-copy-btn" id="mmt-copy-apache"><?php esc_html_e('Copy Code', 'modern-media-thumbnails'); ?></button>
+                            <button class="mmt-config-copy-btn" id="mmt-copy-apache"><?php esc_html_e('Copy Code', 'modern-thumbnails'); ?></button>
                         </div>
                     </div>
                 </div>
@@ -538,7 +550,7 @@ class SettingsPage {
             
             <!-- Global Footer: About This Plugin -->
             <div class="mmt-about-footer">
-                <h2><?php esc_html_e('About Modern Thumbnails', 'modern-media-thumbnails'); ?></h2>
+                <h2><?php esc_html_e('About Modern Thumbnails', 'modern-thumbnails'); ?></h2>
                 <div class="card">
                     <!-- Logo Icon -->
                     <div class="mmt-about-logo">
@@ -550,21 +562,21 @@ class SettingsPage {
                         ?>
                     </div>
                     <p>
-                        <?php esc_html_e('Unlike other thumbnail plugins that simply generate additional image files, Modern Thumbnails works smarter. It automatically replaces generated JPG/PNG thumbnails with optimized WebP format versions—significantly reducing file sizes without any loss of visual quality.', 'modern-media-thumbnails'); ?>
+                        <?php esc_html_e('Unlike other thumbnail plugins that simply generate additional image files, Modern Thumbnails works smarter. It automatically replaces generated JPG/PNG thumbnails with optimized WebP format versions—significantly reducing file sizes without any loss of visual quality.', 'modern-thumbnails'); ?>
                     </p>
                     
-                    <h3><?php esc_html_e('Key Benefits:', 'modern-media-thumbnails'); ?></h3>
+                    <h3><?php esc_html_e('Key Benefits:', 'modern-thumbnails'); ?></h3>
                     <ul>
-                        <li><strong><?php esc_html_e('Faster Page Loading', 'modern-media-thumbnails'); ?>:</strong> <?php esc_html_e('WebP files are 25-35% smaller than JPEG, resulting in faster image downloads and improved page performance.', 'modern-media-thumbnails'); ?></li>
-                        <li><strong><?php esc_html_e('Save Server Space', 'modern-media-thumbnails'); ?>:</strong> <?php esc_html_e('Thumbnail files consume significantly less disk storage, reducing hosting costs and allowing you to store more media files.', 'modern-media-thumbnails'); ?></li>
-                        <li><strong><?php esc_html_e('Automatic Processing', 'modern-media-thumbnails'); ?>:</strong> <?php esc_html_e('WebP versions are generated automatically on image upload for all theme-defined thumbnail sizes.', 'modern-media-thumbnails'); ?></li>
-                        <li><strong><?php esc_html_e('Source Files Untouched', 'modern-media-thumbnails'); ?>:</strong> <?php esc_html_e('The original uploaded image file is never modified—only automatically generated thumbnails are optimized.', 'modern-media-thumbnails'); ?></li>
-                        <li><strong><?php esc_html_e('Theme-Aware', 'modern-media-thumbnails'); ?>:</strong> <?php esc_html_e('Respects theme-defined crop settings for all image sizes, ensuring proper aspect ratios and alignments.', 'modern-media-thumbnails'); ?></li>
-                        <li><strong><?php esc_html_e('High-Performance Processing', 'modern-media-thumbnails'); ?>:</strong> <?php esc_html_e('Powered by Imagick library for fast, efficient image processing.', 'modern-media-thumbnails'); ?></li>
+                        <li><strong><?php esc_html_e('Faster Page Loading', 'modern-thumbnails'); ?>:</strong> <?php esc_html_e('WebP files are 25-35% smaller than JPEG, resulting in faster image downloads and improved page performance.', 'modern-thumbnails'); ?></li>
+                        <li><strong><?php esc_html_e('Save Server Space', 'modern-thumbnails'); ?>:</strong> <?php esc_html_e('Thumbnail files consume significantly less disk storage, reducing hosting costs and allowing you to store more media files.', 'modern-thumbnails'); ?></li>
+                        <li><strong><?php esc_html_e('Automatic Processing', 'modern-thumbnails'); ?>:</strong> <?php esc_html_e('WebP versions are generated automatically on image upload for all theme-defined thumbnail sizes.', 'modern-thumbnails'); ?></li>
+                        <li><strong><?php esc_html_e('Source Files Untouched', 'modern-thumbnails'); ?>:</strong> <?php esc_html_e('The original uploaded image file is never modified—only automatically generated thumbnails are optimized.', 'modern-thumbnails'); ?></li>
+                        <li><strong><?php esc_html_e('Theme-Aware', 'modern-thumbnails'); ?>:</strong> <?php esc_html_e('Respects theme-defined crop settings for all image sizes, ensuring proper aspect ratios and alignments.', 'modern-thumbnails'); ?></li>
+                        <li><strong><?php esc_html_e('High-Performance Processing', 'modern-thumbnails'); ?>:</strong> <?php esc_html_e('Powered by Imagick library for fast, efficient image processing.', 'modern-thumbnails'); ?></li>
                     </ul>
                     
                     <p style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #eee;">
-                        <em><?php esc_html_e('This plugin is ideal for websites with large media libraries that want to improve performance and reduce storage costs without compromising image quality.', 'modern-media-thumbnails'); ?></em>
+                        <em><?php esc_html_e('This plugin is ideal for websites with large media libraries that want to improve performance and reduce storage costs without compromising image quality.', 'modern-thumbnails'); ?></em>
                     </p>
                 </div>
             </div>
@@ -657,7 +669,7 @@ class SettingsPage {
                             if ($footer.length === 0) {
                                 var footerHtml = '<div class="mmt-card-footer">' +
                                     '<div class="mmt-quality-control">' +
-                                    '<label for="mmt_original_quality"><?php esc_html_e('Quality', 'modern-media-thumbnails'); ?></label>' +
+                                    '<label for="mmt_original_quality"><?php esc_html_e('Quality', 'modern-thumbnails'); ?></label>' +
                                     '<input type="range" id="mmt_original_quality" name="settings[original_quality]" min="0" max="100" value="<?php echo intval($settings['original_quality']); ?>" class="mmt-quality-slider">' +
                                     '<span class="mmt-quality-value"><?php echo intval($settings['original_quality']); ?></span>' +
                                     '</div>' +
@@ -744,7 +756,7 @@ class SettingsPage {
                         var originalText = $button.text();
                         
                         navigator.clipboard.writeText(text).then(function() {
-                            $button.text('<?php esc_html_e('Copied!', 'modern-media-thumbnails'); ?>');
+                            $button.text('<?php esc_html_e('Copied!', 'modern-thumbnails'); ?>');
                             setTimeout(function() {
                                 $button.text(originalText);
                             }, 2000);

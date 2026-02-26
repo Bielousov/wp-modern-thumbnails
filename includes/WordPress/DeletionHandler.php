@@ -7,6 +7,10 @@
 
 namespace ModernMediaThumbnails\WordPress;
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 class DeletionHandler {
     
     /**
@@ -37,7 +41,7 @@ class DeletionHandler {
         foreach (['.webp', '.avif'] as $ext) {
             $file = $attachment_base . $ext;
             if (file_exists($file)) {
-                @unlink($file);
+                wp_delete_file($file);
             }
         }
         
@@ -52,20 +56,20 @@ class DeletionHandler {
                     // Delete WebP version
                     $webp_file = $size_base . '.webp';
                     if (file_exists($webp_file)) {
-                        @unlink($webp_file);
+                        wp_delete_file($webp_file);
                     }
                     
                     // Delete AVIF version
                     $avif_file = $size_base . '.avif';
                     if (file_exists($avif_file)) {
-                        @unlink($avif_file);
+                        wp_delete_file($avif_file);
                     }
                     
                     // If original format is kept separately, delete it too
                     foreach (['.jpg', '.jpeg', '.png', '.gif'] as $ext) {
                         $orig_file = $size_base . $ext;
                         if (file_exists($orig_file) && $orig_file !== $size_file) {
-                            @unlink($orig_file);
+                            wp_delete_file($orig_file);
                         }
                     }
                 }

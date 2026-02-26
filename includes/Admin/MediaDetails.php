@@ -7,6 +7,10 @@
 
 namespace ModernMediaThumbnails\Admin;
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 use ModernMediaThumbnails\FormatManager;
 
 class MediaDetails {
@@ -37,11 +41,14 @@ class MediaDetails {
         }
         
         // Check if we're editing an attachment
-        if (!isset($_GET['post']) || !isset($_GET['action']) || $_GET['action'] !== 'edit') {
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Query parameters are for internal navigation only
+        $post_id = isset($_GET['post']) ? intval(wp_unslash($_GET['post'])) : 0;
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Query parameters are for internal navigation only
+        $action = isset($_GET['action']) ? sanitize_key(wp_unslash($_GET['action'])) : '';
+        
+        if (!$post_id || $action !== 'edit') {
             return;
         }
-        
-        $post_id = intval($_GET['post']);
         $post = get_post($post_id);
         
         if (!$post || $post->post_type !== 'attachment') {
