@@ -72,18 +72,29 @@ class Ajax {
             // Detect actual formats on disk
             $size_to_check = $size_name ?: 'original';
             $detected_formats = self::detectFormatsOnDisk($attachment_id, $size_to_check);
-            
-            wp_send_json_success([
-                'message' => sprintf(
-                    'Generated %d format(s) for media #%d',
-                    $regenerated,
-                    $attachment_id
-                ),
-                'attachment_id' => $attachment_id,
-                'count' => $regenerated,
-                'file_path' => $file_path,
-                'formats' => $detected_formats
-            ]);
+                $response = [
+                    'message' => sprintf(
+                        'Generated %d format(s) for media #%d',
+                        $regenerated,
+                        $attachment_id
+                    ),
+                    'attachment_id' => $attachment_id,
+                    'count' => $regenerated,
+                    'file_path' => $file_path,
+                    'formats' => $detected_formats
+                ];
+
+                // If nothing was generated, include diagnostic info to help debugging
+                if ($regenerated === 0) {
+                    $response['diagnostics'] = [
+                        'attached_file' => $file_path,
+                        'attached_file_exists' => $file_path ? file_exists($file_path) : false,
+                        'post_mime_type' => $attachment ? get_post_mime_type($attachment->ID) : null,
+                        'metadata' => wp_get_attachment_metadata($attachment_id),
+                    ];
+                }
+
+                wp_send_json_success($response);
         } else {
             // Original behavior - regenerate all attachments for a size (deprecated)
             if (!$size_name) {
