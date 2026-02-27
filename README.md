@@ -95,11 +95,11 @@ Visit **Tools → Modern Thumbnails Status**. The status page displays your Imag
 
 = What about image quality? =
 
-Quality settings range from 1-100. The plugin defaults to quality settings optimized for web delivery. You can adjust per format in settings if needed.
+The plugin uses ImageMagick, which generally produces a better resampling quality than standard GD library. The quality settings range from 1-100. The plugin defaults to quality settings optimized for web delivery. You can adjust per format in settings if needed.
 
 = Can I rollback if something goes wrong? =
 
-Yes. The plugin preserves your original images. If you disable or uninstall the plugin, original files remain intact.
+Yes. The plugin preserves your original source images, but regenerates thumbnails while updating attachments metadata. If you disable or uninstall the plugin, the last generated thumbnails will continue to be used, until re-generated.
 
 = Does this support responsive images? =
 

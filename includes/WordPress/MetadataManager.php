@@ -30,6 +30,10 @@ class MetadataManager {
         
         // Save corrected metadata to database (priority 20, after all other processing)
         add_filter('wp_generate_attachment_metadata', [self::class, 'saveMetadataToDatabaseAfterFix'], 20, 2);
+
+        // Also ensure metadata is corrected when metadata is updated via wp_update_attachment_metadata
+        // (covers REST API / Gutenberg upload flows which may update metadata via action)
+        add_action('wp_update_attachment_metadata', [self::class, 'onMetadataUpdate'], 10, 2);
     }
     
     /**
