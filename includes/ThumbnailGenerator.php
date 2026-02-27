@@ -25,12 +25,15 @@ class ThumbnailGenerator {
      */
     public static function generateThumbnail($source, $dest_path, $width, $height, $crop, $format, $quality = 80) {
         try {
+            $source_path = null;
+            
             // If source is a string, it's a file path - load it
             // If it's an Imagick object, use it directly
             if (is_string($source)) {
                 if (!file_exists($source)) {
                     return false;
                 }
+                $source_path = $source;
                 $imagick = new \Imagick($source);
                 $should_destroy = true;
             } else {
@@ -85,10 +88,35 @@ class ThumbnailGenerator {
             $result = $imagick->writeImage($dest_path);
             $imagick->destroy();
             
+            // Preserve source file permissions on the generated thumbnail
+            if ($result && $source_path && file_exists($source_path) && file_exists($dest_path)) {
+                self::applySourcePermissions($source_path, $dest_path);
+            }
+            
             return $result;
         } catch (\Exception $e) {
             return false;
         }
+    }
+    
+    /**
+     * Apply source file permissions to destination file
+     * 
+     * @param string $source_path Path to source file
+     * @param string $dest_path Path to destination file
+     * @return bool True if permissions were applied, false otherwise
+     */
+    private static function applySourcePermissions($source_path, $dest_path) {
+        try {
+            $source_perms = @fileperms($source_path);
+            if ($source_perms !== false) {
+                @chmod($dest_path, $source_perms);
+                return true;
+            }
+        } catch (\Exception $e) {
+            // Silently fail - permissions are not critical
+        }
+        return false;
     }
     
     /**

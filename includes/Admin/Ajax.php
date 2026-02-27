@@ -178,18 +178,13 @@ class Ajax {
                     return 0;
                 }
                 
-                // Get size data from metadata if available, otherwise create default
-                if (isset($metadata['sizes'][$size_name])) {
-                    $size_data = $metadata['sizes'][$size_name];
-                    $size_file = dirname($file) . '/' . $size_data['file'];
-                } else {
-                    // Generate from registered size info
-                    $ext = pathinfo($file, PATHINFO_EXTENSION);
-                    $size_file = dirname($file) . '/' . pathinfo($file, PATHINFO_FILENAME) . '-' . $size_name . '.' . $ext;
-                }
-                
+                // Get width/height first to generate proper filename
                 $width = isset($image_sizes[$size_name]['width']) ? $image_sizes[$size_name]['width'] : 0;
                 $height = isset($image_sizes[$size_name]['height']) ? $image_sizes[$size_name]['height'] : 0;
+                
+                // Generate size filename using dimensions
+                $ext = pathinfo($file, PATHINFO_EXTENSION);
+                $size_file = dirname($file) . '/' . pathinfo($file, PATHINFO_FILENAME) . '-' . $width . 'x' . $height . '.' . $ext;
                 $crop = isset($image_sizes[$size_name]['crop']) ? $image_sizes[$size_name]['crop'] : false;
                 
                 $regenerated = self::generateFormatsForSize($file, $size_file, $width, $height, $crop, $attachment->post_mime_type);
@@ -202,9 +197,12 @@ class Ajax {
                             continue;
                         }
                         
-                        $size_file = dirname($file) . '/' . $size_data['file'];
                         $width = isset($image_sizes[$sz_name]['width']) ? $image_sizes[$sz_name]['width'] : 0;
                         $height = isset($image_sizes[$sz_name]['height']) ? $image_sizes[$sz_name]['height'] : 0;
+                        
+                        // Generate size filename using dimensions
+                        $ext = pathinfo($file, PATHINFO_EXTENSION);
+                        $size_file = dirname($file) . '/' . pathinfo($file, PATHINFO_FILENAME) . '-' . $width . 'x' . $height . '.' . $ext;
                         $crop = isset($image_sizes[$sz_name]['crop']) ? $image_sizes[$sz_name]['crop'] : false;
                         
                         $regenerated += self::generateFormatsForSize($file, $size_file, $width, $height, $crop, $attachment->post_mime_type);
@@ -212,10 +210,10 @@ class Ajax {
                 } else {
                     // No metadata sizes - generate from all registered sizes
                     foreach ($image_sizes as $sz_name => $size_info) {
-                        $ext = pathinfo($file, PATHINFO_EXTENSION);
-                        $size_file = dirname($file) . '/' . pathinfo($file, PATHINFO_FILENAME) . '-' . $sz_name . '.' . $ext;
                         $width = isset($size_info['width']) ? $size_info['width'] : 0;
                         $height = isset($size_info['height']) ? $size_info['height'] : 0;
+                        $ext = pathinfo($file, PATHINFO_EXTENSION);
+                        $size_file = dirname($file) . '/' . pathinfo($file, PATHINFO_FILENAME) . '-' . $width . 'x' . $height . '.' . $ext;
                         $crop = isset($size_info['crop']) ? $size_info['crop'] : false;
                         
                         $regenerated += self::generateFormatsForSize($file, $size_file, $width, $height, $crop, $attachment->post_mime_type);
@@ -417,13 +415,23 @@ class Ajax {
                 // For original image
                 $size_base = preg_replace('/\.[^\.]+$/', '', $file);
             } else {
-                // For thumbnail sizes
+                // For thumbnail sizes - use dimensions for consistent naming
                 if (isset($metadata['sizes'][$size_name])) {
                     $size_data = $metadata['sizes'][$size_name];
-                    $size_file = dirname($file) . '/' . $size_data['file'];
-                    $size_base = preg_replace('/\.[^\.]+$/', '', $size_file);
+                    $width = isset($size_data['width']) ? intval($size_data['width']) : 0;
+                    $height = isset($size_data['height']) ? intval($size_data['height']) : 0;
+                    
+                    if ($width && $height) {
+                        // Use dimension-based naming
+                        $ext = pathinfo($file, PATHINFO_EXTENSION);
+                        $size_base = dirname($file) . '/' . pathinfo($file, PATHINFO_FILENAME) . '-' . $width . 'x' . $height;
+                    } else {
+                        // Fallback to old naming from metadata if no dimensions
+                        $size_file = dirname($file) . '/' . $size_data['file'];
+                        $size_base = preg_replace('/\.[^\.]+$/', '', $size_file);
+                    }
                 } else {
-                    // Fallback to pattern
+                    // Fallback when size not in metadata
                     $ext = pathinfo($file, PATHINFO_EXTENSION);
                     $size_base = dirname($file) . '/' . pathinfo($file, PATHINFO_FILENAME) . '-' . $size_name;
                 }
@@ -788,10 +796,13 @@ class Ajax {
                     continue;
                 }
                 
-                $size_file = dirname($file) . '/' . $size_data['file'];
                 $width = isset($image_sizes[$size_name]['width']) ? $image_sizes[$size_name]['width'] : 0;
                 $height = isset($image_sizes[$size_name]['height']) ? $image_sizes[$size_name]['height'] : 0;
                 $crop = isset($image_sizes[$size_name]['crop']) ? $image_sizes[$size_name]['crop'] : false;
+                
+                // Generate size filename using dimensions
+                $ext = pathinfo($file, PATHINFO_EXTENSION);
+                $size_file = dirname($file) . '/' . pathinfo($file, PATHINFO_FILENAME) . '-' . $width . 'x' . $height . '.' . $ext;
                 
                 if ($width && $height) {
                     // Handle GIF files specially
@@ -842,18 +853,43 @@ class Ajax {
             // Destroy imagick object after processing all sizes
             $imagick->destroy();
             
+            // Update metadata to reflect new dimension-based filenames
+            foreach ($metadata['sizes'] as $size_name => $size_data) {
+                if (isset($image_sizes[$size_name])) {
+                    $width = isset($image_sizes[$size_name]['width']) ? $image_sizes[$size_name]['width'] : 0;
+                    $height = isset($image_sizes[$size_name]['height']) ? $image_sizes[$size_name]['height'] : 0;
+                    
+                    // Update with new dimension-based filename
+                    $ext = pathinfo($file, PATHINFO_EXTENSION);
+                    $new_filename = pathinfo($file, PATHINFO_FILENAME) . '-' . $width . 'x' . $height . '.' . $ext;
+                    
+                    if ($width && $height) {
+                        $metadata['sizes'][$size_name]['file'] = $new_filename;
+                        $metadata['sizes'][$size_name]['width'] = $width;
+                        $metadata['sizes'][$size_name]['height'] = $height;
+                    }
+                }
+            }
+            
             // Update attachment metadata to include WebP file references
-            $updated_metadata = wp_get_attachment_metadata($attachment_id);
+            $updated_metadata = $metadata;
             $updated_metadata = MetadataManager::updateMetadataWithWebP($attachment_id, $updated_metadata);
             
             // Save metadata to database
             wp_update_attachment_metadata($attachment_id, $updated_metadata);
             
-            wp_send_json_success([
+            $response = [
                 'attachment_id' => $attachment_id,
                 'regenerated' => $regenerated,
                 'message' => 'Processed media item (generated ' . $regenerated . ' formats)',
-            ]);
+            ];
+
+            // Include generation debug/diagnostics if available
+            if (!empty($generation_debug)) {
+                $response['generation_debug'] = $generation_debug;
+            }
+
+            wp_send_json_success($response);
         } catch (\Exception $e) {
             wp_send_json_error('Error processing attachment ' . $attachment_id . ': ' . $e->getMessage());
         }
@@ -973,8 +1009,12 @@ class Ajax {
             }
             
             $size_data = $metadata['sizes'][$size_name];
-            $size_file = dirname($file) . '/' . $size_data['file'];
             $width = isset($image_sizes[$size_name]['width']) ? $image_sizes[$size_name]['width'] : 0;
+            $height = isset($image_sizes[$size_name]['height']) ? $image_sizes[$size_name]['height'] : 0;
+            
+            // Generate size filename using dimensions
+            $ext = pathinfo($file, PATHINFO_EXTENSION);
+            $size_file = dirname($file) . '/' . pathinfo($file, PATHINFO_FILENAME) . '-' . $width . 'x' . $height . '.' . $ext;
             $height = isset($image_sizes[$size_name]['height']) ? $image_sizes[$size_name]['height'] : 0;
             $crop = isset($image_sizes[$size_name]['crop']) ? $image_sizes[$size_name]['crop'] : false;
             
@@ -1296,19 +1336,28 @@ class Ajax {
 
             if (!empty($metadata['sizes']) && is_array($metadata['sizes'])) {
                 foreach ($metadata['sizes'] as $size_name => &$size_data) {
-                    if (!is_array($size_data) || empty($size_data['file'])) {
+                    if (!is_array($size_data)) {
                         continue;
                     }
 
-                    $size_file_name = $size_data['file'];
-                    $size_base = preg_replace('/\.[^\.]+$/', '', $size_file_name);
+                    // Get dimension info for proper filename
+                    $width = isset($size_data['width']) ? intval($size_data['width']) : 0;
+                    $height = isset($size_data['height']) ? intval($size_data['height']) : 0;
+                    
+                    // Generate dimension-based filename
+                    $size_filename = pathinfo($file, PATHINFO_FILENAME) . '-' . $width . 'x' . $height . '.' . $orig_ext;
 
                     // First, try to find an existing original-format file for this size
                     $found = false;
                     $candidates = [];
-                    $candidates[] = $attachment_dir . '/' . $size_base . '.' . $orig_ext;
-                    foreach (['jpg', 'jpeg', 'png', 'gif'] as $ext) {
-                        $candidates[] = $attachment_dir . '/' . $size_base . '.' . $ext;
+                    $candidates[] = $attachment_dir . '/' . $size_filename;
+                    
+                    // Also check for old naming convention
+                    if (!empty($size_data['file'])) {
+                        $size_base = preg_replace('/\.[^\.]+$/', '', $size_data['file']);
+                        foreach (['jpg', 'jpeg', 'png', 'gif'] as $ext) {
+                            $candidates[] = $attachment_dir . '/' . $size_base . '.' . $ext;
+                        }
                     }
 
                     foreach ($candidates as $cand) {
@@ -1321,41 +1370,36 @@ class Ajax {
                         }
                     }
 
-                    if ($found) {
+                    if ($found || !($width && $height)) {
                         continue;
                     }
 
                     // If no original file found, attempt to generate a JPEG for this size using WP_Image_Editor
-                    $width = isset($size_data['width']) ? intval($size_data['width']) : 0;
-                    $height = isset($size_data['height']) ? intval($size_data['height']) : 0;
-                    $crop = isset($size_data['crop']) ? (bool) $size_data['crop'] : false;
-
-                    if ($width && $height) {
-                        try {
+                    try {
+                        $editor = wp_get_image_editor($file);
+                        if (!is_wp_error($editor)) {
+                            // Create a fresh editor instance from original each iteration
                             $editor = wp_get_image_editor($file);
                             if (!is_wp_error($editor)) {
-                                // Create a fresh editor instance from original each iteration
-                                $editor = wp_get_image_editor($file);
-                                if (!is_wp_error($editor)) {
-                                    $resized = $editor->resize($width, $height, $crop);
-                                    if (!is_wp_error($resized)) {
-                                        $target_jpg = $attachment_dir . '/' . $size_base . '.jpg';
-                                        wp_mkdir_p(dirname($target_jpg));
-                                        $saved = $editor->save($target_jpg);
-                                        if (!is_wp_error($saved) && !empty($saved['path']) && file_exists($saved['path'])) {
-                                            $size_data['file'] = basename($saved['path']);
-                                            $size_data['mime-type'] = 'image/jpeg';
-                                            $restored++;
-                                        }
-                                    }
-                                    if (method_exists($editor, 'clear')) {
-                                        $editor->clear();
+                                $crop = isset($size_data['crop']) ? (bool) $size_data['crop'] : false;
+                                $resized = $editor->resize($width, $height, $crop);
+                                if (!is_wp_error($resized)) {
+                                    $target_jpg = $attachment_dir . '/' . $size_filename;
+                                    wp_mkdir_p(dirname($target_jpg));
+                                    $saved = $editor->save($target_jpg);
+                                    if (!is_wp_error($saved) && !empty($saved['path']) && file_exists($saved['path'])) {
+                                        $size_data['file'] = basename($saved['path']);
+                                        $size_data['mime-type'] = 'image/jpeg';
+                                        $restored++;
                                     }
                                 }
+                                if (method_exists($editor, 'clear')) {
+                                    $editor->clear();
+                                }
                             }
-                        } catch (\Exception $e) {
-                            // Ignore generation errors for this size
                         }
+                    } catch (\Exception $e) {
+                        // Ignore generation errors for this size
                     }
                 }
                 unset($size_data);
@@ -1672,18 +1716,42 @@ class Ajax {
                 }
 
                 $ext = pathinfo($file, PATHINFO_EXTENSION);
-                $size_filename = pathinfo($file, PATHINFO_FILENAME) . '-' . $size_name . '.' . $ext;
+                $size_filename = pathinfo($file, PATHINFO_FILENAME) . '-' . $width . 'x' . $height . '.' . $ext;
                 $target = $attachment_dir . '/' . $size_filename;
                 wp_mkdir_p(dirname($target));
+
+                // Ensure directory is writable before attempting save
+                if (is_dir($attachment_dir) && !is_writable($attachment_dir)) {
+                    @chmod($attachment_dir, 0755);
+                }
+
                 $saved = $editor->save($target);
                 if (is_wp_error($saved)) {
-                    $debug['sizes'][$size_name] = ['error' => 'save_failed', 'message' => $saved->get_error_message()];
+                    $error_msg = $saved->get_error_message();
+                    // Check if this is a permission denied error
+                    if (strpos($error_msg, 'Permission denied') !== false || strpos($error_msg, 'permission') !== false) {
+                        $debug['sizes'][$size_name] = [
+                            'error' => 'save_failed_permission',
+                            'message' => $error_msg,
+                            'dir_exists' => is_dir($attachment_dir),
+                            'dir_writable' => is_writable($attachment_dir),
+                            'dir_perms' => is_dir($attachment_dir) ? substr(sprintf('%o', @fileperms($attachment_dir)), -4) : null,
+                        ];
+                    } else {
+                        $debug['sizes'][$size_name] = ['error' => 'save_failed', 'message' => $error_msg];
+                    }
                     continue;
                 }
 
                 if (empty($saved['path']) || !file_exists($saved['path'])) {
                     $debug['sizes'][$size_name] = ['error' => 'saved_file_missing', 'path' => $saved['path'] ?? null];
                     continue;
+                }
+
+                // Preserve source file permissions on generated thumbnail
+                $source_perms = @fileperms($file);
+                if ($source_perms !== false) {
+                    @chmod($saved['path'], $source_perms);
                 }
 
                 $metadata['sizes'][$size_name] = [
@@ -1841,6 +1909,7 @@ class Ajax {
         add_action('wp_ajax_mmt_restore_queue_process', [self::class, 'restoreQueueProcess']);
         add_action('wp_ajax_mmt_dismiss_nginx_notice', [self::class, 'dismissNginxNotice']);
         add_action('wp_ajax_mmt_dismiss_apache_notice', [self::class, 'dismissApacheNotice']);
+        add_action('wp_ajax_mmt_get_diagnostics', [self::class, 'getDiagnosticsHandler']);
     }
     
     /**
@@ -1889,5 +1958,95 @@ class Ajax {
         delete_transient('mmt_apache_config_notice'); // Clear the show notice transient
         
         wp_send_json_success(['message' => 'Notice dismissed']);
+    }
+
+    /**
+     * AJAX handler to return permissions and environment diagnostics.
+     * Helps user debug why thumbnail generation is failing with permission errors.
+     *
+     * @return void
+     */
+    public static function getDiagnosticsHandler() {
+        check_ajax_referer('mmt_regenerate_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'Insufficient permissions']);
+        }
+
+        $diagnostics = self::gatherPermissionsDiagnostics();
+        
+        $attachment_id = isset($_POST['attachment_id']) ? intval($_POST['attachment_id']) : 0;
+        if ($attachment_id) {
+            $diagnostics['attachment_dir'] = self::getAttachmentDirDiagnostics($attachment_id);
+        }
+
+        wp_send_json_success([
+            'diagnostics' => $diagnostics,
+            'message' => 'Diagnostics gathered'
+        ]);
+    }
+     * Helps identify why ImageMagick/GD cannot save thumbnails.
+     *
+     * @return array Diagnostic information
+     */
+    public static function gatherPermissionsDiagnostics() {
+        $upload_dir = wp_upload_dir();
+        $uploads_base = $upload_dir['basedir'];
+        $diagnostics = [
+            'uploads_base'        => $uploads_base,
+            'uploads_exists'      => is_dir($uploads_base),
+            'uploads_writable'    => is_writable($uploads_base),
+            'uploads_perms'       => is_dir($uploads_base) ? substr(sprintf('%o', @fileperms($uploads_base)), -4) : null,
+            'uploads_owner_uid'   => is_dir($uploads_base) ? @fileowner($uploads_base) : null,
+            'php_user_uid'        => function_exists('posix_getuid') ? posix_getuid() : 'unknown',
+            'php_user'            => function_exists('posix_getpwuid') ? posix_getpwuid(posix_getuid())['name'] : 'unknown',
+            'temp_dir'            => sys_get_temp_dir(),
+            'temp_writable'       => is_writable(sys_get_temp_dir()),
+            'gd_available'        => extension_loaded('gd'),
+            'imagick_available'   => extension_loaded('imagick'),
+        ];
+
+        // Check if ImageMagick policy restricts file operations
+        $policy_paths = [
+            '/etc/ImageMagick-6/policy.xml',
+            '/etc/ImageMagick/policy.xml',
+            '/etc/ImageMagick-7/policy.xml',
+        ];
+        foreach ($policy_paths as $path) {
+            if (file_exists($path)) {
+                $policy_content = file_get_contents($path);
+                if (strpos($policy_content, '<policy') !== false) {
+                    $diagnostics['imagick_policy_found'] = $path;
+                    // Check for file:// or blob: restrictions
+                    if (preg_match('/<policy.*domain="coder"\s+rights="none".*pattern="(file|blob)"/', $policy_content)) {
+                        $diagnostics['imagick_file_policy_blocked'] = true;
+                    }
+                    break;
+                }
+            }
+        }
+
+        return $diagnostics;
+    }
+
+    /**
+     * Get information about target attachment directory.
+     *
+     * @param int $attachment_id Attachment post ID.
+     * @return array Directory info
+     */
+    public static function getAttachmentDirDiagnostics($attachment_id) {
+        $file = get_attached_file($attachment_id);
+        if (!$file) {
+            return ['error' => 'no_attached_file'];
+        }
+        $attachment_dir = dirname($file);
+        return [
+            'dir'            => $attachment_dir,
+            'exists'         => is_dir($attachment_dir),
+            'writable'       => is_writable($attachment_dir),
+            'perms'          => is_dir($attachment_dir) ? substr(sprintf('%o', @fileperms($attachment_dir)), -4) : null,
+            'owner_uid'      => is_dir($attachment_dir) ? @fileowner($attachment_dir) : null,
+        ];
     }
 }
