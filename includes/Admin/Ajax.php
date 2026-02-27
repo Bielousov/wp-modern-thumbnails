@@ -86,11 +86,16 @@ class Ajax {
 
                 // If nothing was generated, include diagnostic info to help debugging
                 if ($regenerated === 0) {
+                    $attached_exists = $file_path ? file_exists($file_path) : false;
                     $response['diagnostics'] = [
                         'attached_file' => $file_path,
-                        'attached_file_exists' => $file_path ? file_exists($file_path) : false,
-                        'post_mime_type' => $attachment ? get_post_mime_type($attachment->ID) : null,
+                        'attached_file_exists' => $attached_exists,
+                        'attached_file_realpath' => $attached_exists ? @realpath($file_path) : null,
+                        'attached_file_readable' => $attached_exists ? is_readable($file_path) : false,
+                        'attached_file_perms' => $attached_exists ? substr(sprintf('%o', @fileperms($file_path)), -4) : null,
+                        'post_mime_type' => get_post_mime_type($attachment_id),
                         'metadata' => wp_get_attachment_metadata($attachment_id),
+                        'upload_dir' => wp_upload_dir(),
                     ];
                 }
 
