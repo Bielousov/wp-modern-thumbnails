@@ -59,8 +59,22 @@ class Ajax {
         
         // If attachment_id is provided, regenerate only that specific attachment
         if ($attachment_id) {
-            $regenerated = self::regenerateAttachmentSize($attachment_id, $size_name);
             $file_path = get_attached_file($attachment_id);
+            $generation_debug = null;
+
+            // Attempt metadata generation if missing (covers REST/Gutenberg uploads)
+            $metadata = wp_get_attachment_metadata($attachment_id);
+            if (empty($metadata)) {
+                $generated_meta = self::generateMetadataWithEditor($attachment_id, $file_path);
+                if (!empty($generated_meta) && is_array($generated_meta)) {
+                    if (!empty($generated_meta['metadata'])) {
+                        $metadata = $generated_meta['metadata'];
+                    }
+                    $generation_debug = $generated_meta['debug'] ?? $generated_meta;
+                }
+            }
+
+            $regenerated = self::regenerateAttachmentSize($attachment_id, $size_name);
             
             // Update attachment metadata to include WebP file references
             $updated_metadata = wp_get_attachment_metadata($attachment_id);
@@ -97,6 +111,9 @@ class Ajax {
                         'metadata' => wp_get_attachment_metadata($attachment_id),
                         'upload_dir' => wp_upload_dir(),
                     ];
+                    if ($generation_debug) {
+                        $response['generation_debug'] = $generation_debug;
+                    }
                 }
 
                 wp_send_json_success($response);
@@ -144,7 +161,13 @@ class Ajax {
             
             $metadata = wp_get_attachment_metadata($attachment_id);
             if (empty($metadata)) {
-                return 0;
+                // Attempt metadata generation fallback (covers REST/Gutenberg uploads)
+                $generated_meta = self::generateMetadataWithEditor($attachment_id, $file);
+                if (!empty($generated_meta) && is_array($generated_meta) && !empty($generated_meta['metadata'])) {
+                    $metadata = $generated_meta['metadata'];
+                } else {
+                    return 0;
+                }
             }
             
             $image_sizes = \ModernMediaThumbnails\ImageSizeManager::getAllImageSizes();
@@ -694,8 +717,11 @@ class Ajax {
              */
             if (empty($metadata) || empty($metadata['sizes'])) {
                 $generated_meta = self::generateMetadataWithEditor($attachment_id, $file);
-                if (!empty($generated_meta) && is_array($generated_meta)) {
-                    $metadata = $generated_meta;
+                if (!empty($generated_meta) && is_array($generated_meta) && !empty($generated_meta['metadata'])) {
+                    $metadata = $generated_meta['metadata'];
+                } else {
+                    // Attach generation debug info to diagnostics for later reporting
+                    $generation_debug = is_array($generated_meta) ? ($generated_meta['debug'] ?? $generated_meta) : ['error' => 'generation_failed'];
                 }
             }
             
@@ -1451,10 +1477,13 @@ class Ajax {
      * @return array|false
      */
     private static function generateMetadataWithEditor($attachment_id, $file) {
+        $debug = ['sizes' => []];
         try {
             $editor_class = wp_get_image_editor($file);
             if (is_wp_error($editor_class)) {
-                return false;
+                $debug['error'] = 'no_image_editor';
+                $debug['editor_error'] = $editor_class->get_error_message();
+                return ['metadata' => false, 'debug' => $debug];
             }
 
             $image_sizes = \ModernMediaThumbnails\ImageSizeManager::getAllImageSizes();
@@ -1462,11 +1491,13 @@ class Ajax {
             // Get source dimensions
             $size = @getimagesize($file);
             if (!$size || !isset($size[0], $size[1])) {
-                return false;
+                $debug['error'] = 'unable_to_read_dimensions';
+                return ['metadata' => false, 'debug' => $debug];
             }
 
             $metadata = [];
-            $metadata['file'] = ltrim(str_replace(trailingslashit(wp_get_upload_dir()['basedir']) . '', '', $file), '/');
+            $upload_dir = wp_get_upload_dir();
+            $metadata['file'] = ltrim(str_replace(trailingslashit($upload_dir['basedir']), '', $file), '/');
             $metadata['width'] = intval($size[0]);
             $metadata['height'] = intval($size[1]);
             $metadata['sizes'] = [];
@@ -1479,17 +1510,20 @@ class Ajax {
                 $crop = isset($size_info['crop']) ? (bool)$size_info['crop'] : false;
 
                 if (!$width || !$height) {
+                    $debug['sizes'][$size_name] = ['skipped' => 'invalid_dimensions'];
                     continue;
                 }
 
                 // Create a fresh editor instance per size to avoid stale state
                 $editor = wp_get_image_editor($file);
                 if (is_wp_error($editor)) {
+                    $debug['sizes'][$size_name] = ['error' => 'editor_init_failed', 'message' => $editor->get_error_message()];
                     continue;
                 }
 
                 $resized = $editor->resize($width, $height, $crop);
                 if (is_wp_error($resized)) {
+                    $debug['sizes'][$size_name] = ['error' => 'resize_failed', 'message' => $resized->get_error_message()];
                     continue;
                 }
 
@@ -1498,7 +1532,13 @@ class Ajax {
                 $target = $attachment_dir . '/' . $size_filename;
                 wp_mkdir_p(dirname($target));
                 $saved = $editor->save($target);
-                if (is_wp_error($saved) || empty($saved['path']) || !file_exists($saved['path'])) {
+                if (is_wp_error($saved)) {
+                    $debug['sizes'][$size_name] = ['error' => 'save_failed', 'message' => $saved->get_error_message()];
+                    continue;
+                }
+
+                if (empty($saved['path']) || !file_exists($saved['path'])) {
+                    $debug['sizes'][$size_name] = ['error' => 'saved_file_missing', 'path' => $saved['path'] ?? null];
                     continue;
                 }
 
@@ -1508,20 +1548,24 @@ class Ajax {
                     'height' => $saved['height'] ?? $height,
                 ];
 
+                $debug['sizes'][$size_name] = ['saved' => true, 'path' => $saved['path'], 'width' => $saved['width'] ?? $width, 'height' => $saved['height'] ?? $height];
+
                 if (method_exists($editor, 'clear')) {
                     $editor->clear();
                 }
             }
 
             if (empty($metadata['sizes'])) {
-                return false;
+                $debug['error'] = 'no_sizes_saved';
+                return ['metadata' => false, 'debug' => $debug];
             }
 
             // Persist metadata
             wp_update_attachment_metadata($attachment_id, $metadata);
-            return $metadata;
+            return ['metadata' => $metadata, 'debug' => $debug];
         } catch (\Exception $e) {
-            return false;
+            $debug['exception'] = $e->getMessage();
+            return ['metadata' => false, 'debug' => $debug];
         }
     }
     
