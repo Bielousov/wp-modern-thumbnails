@@ -1003,10 +1003,42 @@ class Ajax {
                 }
             }
 
+            $upload_dir = wp_upload_dir();
             foreach ($candidates as $del_file) {
-                if ($del_file && file_exists($del_file)) {
-                    @wp_delete_file($del_file);
-                    $deleted++;
+                if ( ! $del_file ) {
+                    continue;
+                }
+
+                // Try the candidate path and a fallback in upload basedir
+                $paths_to_try = array_unique([
+                    $del_file,
+                    trailingslashit($upload_dir['basedir']) . ltrim(basename($del_file), '/'),
+                ]);
+
+                foreach ($paths_to_try as $try_path) {
+                    if (! $try_path) {
+                        continue;
+                    }
+
+                    clearstatcache(true, $try_path);
+
+                    if (file_exists($try_path)) {
+                        $deleted_ok = false;
+                        // Prefer wp_delete_file when available
+                        if (function_exists('wp_delete_file')) {
+                            $deleted_ok = @wp_delete_file($try_path);
+                        }
+
+                        if (! $deleted_ok) {
+                            // Fallback to unlink if wp_delete_file didn't remove it
+                            $deleted_ok = @unlink($try_path);
+                        }
+
+                        if ($deleted_ok) {
+                            $deleted++;
+                            break; // stop trying other fallbacks for this candidate
+                        }
+                    }
                 }
             }
 
