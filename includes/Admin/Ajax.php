@@ -1985,6 +1985,9 @@ class Ajax {
             'message' => 'Diagnostics gathered'
         ]);
     }
+
+    /**
+     * Gather diagnostics about file permissions and environment.
      * Helps identify why ImageMagick/GD cannot save thumbnails.
      *
      * @return array Diagnostic information
