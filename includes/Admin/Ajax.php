@@ -305,16 +305,42 @@ class Ajax {
     /**
      * Delete existing files for a thumbnail size
      * 
-     * @param string $size_base Base path without extension
+     * Aggressively removes all existing formats (webp, avif, png, jpg, jpeg, gif)
+     * for the given size base, plus scans directory for any other matching files.
+     * 
+     * @param string $size_base Base path without extension (e.g. /path/to/image-medium)
      * @return void
      */
     private static function deleteExistingFiles($size_base) {
         $formats = ['webp', 'avif', 'png', 'jpg', 'jpeg', 'gif'];
         
+        // Delete known formats
         foreach ($formats as $format) {
             $file = $size_base . '.' . $format;
             if (file_exists($file)) {
-                wp_delete_file($file);
+                @wp_delete_file($file);
+            }
+        }
+        
+        // Additional aggressive cleanup: find and remove any other files in the same directory
+        // that match the size basename pattern (covers edge cases where wp_get_image_editor 
+        // may have saved with a different naming scheme)
+        $dir = dirname($size_base);
+        $basename = basename($size_base);
+        
+        if (is_dir($dir)) {
+            $files = @scandir($dir);
+            if ($files && is_array($files)) {
+                foreach ($files as $file_name) {
+                    // Match files that start with the size basename and may have any extension
+                    if (strpos($file_name, $basename) === 0) {
+                        $full_path = $dir . '/' . $file_name;
+                        // Don't delete directories or the original fullsize file
+                        if (is_file($full_path) && $file_name !== $basename) {
+                            @wp_delete_file($full_path);
+                        }
+                    }
+                }
             }
         }
     }
@@ -1334,6 +1360,7 @@ class Ajax {
                 'attachment_id' => $attachment_id,
                 'deleted' => $deleted,
                 'restored' => $restored,
+                'file_path' => $file,
                 'message' => 'Restore completed (deleted ' . $deleted . ' files, regenerated or restored ' . $restored . ' sizes)'
             ]);
         } catch (\Exception $e) {

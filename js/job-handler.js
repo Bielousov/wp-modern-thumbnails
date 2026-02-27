@@ -249,15 +249,28 @@
                 
                 self.currentIndex++;
                 
-                // Format message based on response count
+                // Format message based on response count (regenerate) or deleted/restored (restore)
                 var displayPath = '';
                 var responseData = response.data || response;
                 
                 if (responseData.file_path) {
-                    if (responseData.count > 0) {
-                        displayPath = 'Last processed media file: ' + responseData.file_path;
-                    } else if (responseData.count === 0) {
-                        displayPath = 'Skipped ' + responseData.file_path + ': file not found';
+                    // Regenerate: use 'count' field
+                    if (typeof responseData.count !== 'undefined') {
+                        if (responseData.count > 0) {
+                            displayPath = 'Last processed media file: ' + responseData.file_path;
+                        } else if (responseData.count === 0) {
+                            displayPath = 'Skipped ' + responseData.file_path + ': file not found';
+                        }
+                    }
+                    // Restore: use 'deleted' and 'restored' fields
+                    else if (typeof responseData.deleted !== 'undefined' || typeof responseData.restored !== 'undefined') {
+                        var deleted = responseData.deleted || 0;
+                        var restored = responseData.restored || 0;
+                        displayPath = 'Restored: ' + responseData.file_path + ' (deleted ' + deleted + ', restored ' + restored + ')';
+                    }
+                    // Fallback: just show the file path
+                    else {
+                        displayPath = 'Last processed: ' + responseData.file_path;
                     }
                 }
                 
