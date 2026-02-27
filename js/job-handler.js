@@ -348,6 +348,11 @@
                 countEl.style.color = '#00ff88';
                 countEl.textContent = 'Complete!';
             }
+            // Remove the Stop button when the job completes
+            var stopBtn = this.$container.querySelector('.mmt-job-stop');
+            if (stopBtn && stopBtn.parentNode) {
+                stopBtn.parentNode.removeChild(stopBtn);
+            }
         }
     };
     

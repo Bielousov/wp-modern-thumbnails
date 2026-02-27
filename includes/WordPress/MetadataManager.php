@@ -34,6 +34,10 @@ class MetadataManager {
         // Also ensure metadata is corrected when metadata is updated via wp_update_attachment_metadata
         // (covers REST API / Gutenberg upload flows which may update metadata via action)
         add_action('wp_update_attachment_metadata', [self::class, 'onMetadataUpdate'], 10, 2);
+
+        // Ensure media JS and REST responses reflect WebP/AVIF metadata when present
+        add_filter('wp_prepare_attachment_for_js', [self::class, 'filterPrepareAttachmentForJS'], 10, 3);
+        add_filter('rest_prepare_attachment', [self::class, 'filterRestPrepareAttachment'], 10, 3);
     }
     
     /**
@@ -51,6 +55,95 @@ class MetadataManager {
             update_post_meta($attachment_id, '_wp_attachment_metadata', $metadata);
         }
         return $metadata;
+    }
+
+    /**
+     * Filter the data returned to wp_prepare_attachment_for_js so the block editor
+     * sees WebP/AVIF files when they exist on disk even if DB metadata hasn't been
+     * updated yet.
+     *
+     * @param array $response Prepared attachment data
+     * @param int|WP_Post $attachment Attachment ID or post object
+     * @param array $meta Attachment metadata
+     * @return array Modified response
+     */
+    public static function filterPrepareAttachmentForJS($response, $attachment, $meta) {
+        if (empty($meta) || !is_array($meta)) {
+            return $response;
+        }
+
+        $attachment_id = is_object($attachment) ? intval($attachment->ID) : intval($attachment);
+        if (! $attachment_id) {
+            return $response;
+        }
+
+        $updated_meta = self::updateMetadataWithWebP($attachment_id, $meta);
+        if ($updated_meta === $meta) {
+            return $response;
+        }
+
+        // Patch response fields from updated metadata
+        if (!empty($updated_meta['file'])) {
+            $uploads = wp_get_upload_dir();
+            $response['url'] = trailingslashit($uploads['baseurl']) . ltrim($updated_meta['file'], '/');
+        }
+
+        if (!empty($updated_meta['sizes']) && is_array($updated_meta['sizes'])) {
+            $response['sizes'] = [];
+            foreach ($updated_meta['sizes'] as $size_name => $size_data) {
+                if (!is_array($size_data) || empty($size_data['file'])) {
+                    continue;
+                }
+
+                $response['sizes'][$size_name] = [
+                    'file' => $size_data['file'],
+                    'width' => $size_data['width'] ?? 0,
+                    'height' => $size_data['height'] ?? 0,
+                    'mime-type' => $size_data['mime-type'] ?? '',
+                    'source_url' => isset($uploads) ? trailingslashit($uploads['baseurl']) . ltrim($updated_meta['file'], '/') : '',
+                ];
+            }
+        }
+
+        return $response;
+    }
+
+    /**
+     * Filter REST attachment response to prefer WebP/AVIF when present on disk.
+     *
+     * @param WP_REST_Response $response
+     * @param WP_Post $post
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response
+     */
+    public static function filterRestPrepareAttachment($response, $post, $request) {
+        $data = $response->get_data();
+        $meta = $data['media_details'] ?? [];
+
+        if (empty($meta) || !is_array($meta)) {
+            return $response;
+        }
+
+        $attachment_id = intval($post->ID ?? 0);
+        if (! $attachment_id) {
+            return $response;
+        }
+
+        $updated_meta = self::updateMetadataWithWebP($attachment_id, $meta);
+        if ($updated_meta === $meta) {
+            return $response;
+        }
+
+        // Replace media_details in REST response
+        $data['media_details'] = $updated_meta;
+        // Also update source URL if main file changed
+        if (!empty($updated_meta['file'])) {
+            $uploads = wp_get_upload_dir();
+            $data['source_url'] = trailingslashit($uploads['baseurl']) . ltrim($updated_meta['file'], '/');
+        }
+
+        $response->set_data($data);
+        return $response;
     }
     
     /**

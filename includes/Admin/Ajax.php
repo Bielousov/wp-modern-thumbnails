@@ -989,21 +989,56 @@ class Ajax {
             $deleted = 0;
             $restored = 0;
 
-            // Delete WebP/AVIF variants for sizes and full image
+            // Build potential candidate paths to delete. Consider both the stored metadata
+            // (which may already reference .webp/.avif) and the on-disk attached file path.
             $candidates = [];
-            // Full-size variants
-            $candidates[] = preg_replace('/\.[^\.]+$/', '.webp', $file);
-            $candidates[] = preg_replace('/\.[^\.]+$/', '.avif', $file);
+            $upload_dir = wp_upload_dir();
 
-            if (!empty($metadata['sizes'])) {
-                foreach ($metadata['sizes'] as $size_data) {
-                    $size_file = dirname($file) . '/' . $size_data['file'];
-                    $candidates[] = preg_replace('/\.[^\.]+$/', '.webp', $size_file);
-                    $candidates[] = preg_replace('/\.[^\.]+$/', '.avif', $size_file);
+            // Candidate from metadata 'file' (may be relative path)
+            if (!empty($metadata['file'])) {
+                $meta_rel = ltrim($metadata['file'], '/');
+                $meta_full = trailingslashit($upload_dir['basedir']) . $meta_rel;
+                $candidates[] = $meta_full;
+                $candidates[] = preg_replace('/\.[^\.]+$/', '.webp', $meta_full);
+                $candidates[] = preg_replace('/\.[^\.]+$/', '.avif', $meta_full);
+
+                // If metadata currently points to a modern format, also include likely original extensions
+                if (preg_match('/\.(webp|avif)$/i', $meta_full)) {
+                    foreach (['jpg', 'jpeg', 'png', 'gif'] as $ext) {
+                        $candidates[] = preg_replace('/\.[^\.]+$/', '.' . $ext, $meta_full);
+                    }
                 }
             }
 
-            $upload_dir = wp_upload_dir();
+            // Candidate based on get_attached_file() path
+            $candidates[] = $file;
+            $candidates[] = preg_replace('/\.[^\.]+$/', '.webp', $file);
+            $candidates[] = preg_replace('/\.[^\.]+$/', '.avif', $file);
+
+            // Sizes from metadata (each may already reference .webp)
+            if (!empty($metadata['sizes'])) {
+                foreach ($metadata['sizes'] as $size_data) {
+                    if (empty($size_data['file'])) {
+                        continue;
+                    }
+
+                    $size_rel = ltrim($size_data['file'], '/');
+                    $size_full = dirname($file) . '/' . $size_rel;
+                    $candidates[] = $size_full;
+                    $candidates[] = preg_replace('/\.[^\.]+$/', '.webp', $size_full);
+                    $candidates[] = preg_replace('/\.[^\.]+$/', '.avif', $size_full);
+
+                    if (preg_match('/\.(webp|avif)$/i', $size_rel)) {
+                        foreach (['jpg', 'jpeg', 'png', 'gif'] as $ext) {
+                            $candidates[] = preg_replace('/\.[^\.]+$/', '.' . $ext, $size_full);
+                        }
+                    }
+                }
+            }
+
+            // Deduplicate candidate list
+            $candidates = array_values(array_unique(array_filter($candidates)));
+
             foreach ($candidates as $del_file) {
                 if ( ! $del_file ) {
                     continue;
