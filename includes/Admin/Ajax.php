@@ -654,6 +654,23 @@ class Ajax {
             }
 
             if (empty($metadata) || empty($metadata['sizes'])) {
+                // Collect diagnostics about available image editors and PHP extensions
+                $editor = wp_get_image_editor($file);
+                $editor_info = [];
+                if (is_wp_error($editor)) {
+                    $editor_info['error'] = $editor->get_error_message();
+                } else {
+                    $editor_info['class'] = is_object($editor) ? get_class($editor) : null;
+                }
+
+                $gd_info = null;
+                if (function_exists('gd_info')) {
+                    $gd_info = @gd_info();
+                }
+
+                $file_type = wp_check_filetype($file);
+                $mime_content = function_exists('mime_content_type') ? @mime_content_type($file) : null;
+
                 wp_send_json_success([
                     'attachment_id' => $attachment_id,
                     'regenerated' => 0,
@@ -661,6 +678,12 @@ class Ajax {
                     'diagnostics' => [
                         'metadata_generated' => $metadata_generated,
                         'metadata' => $metadata,
+                        'image_editor' => $editor_info,
+                        'imagick_available' => class_exists('Imagick'),
+                        'gd_available' => function_exists('gd_info'),
+                        'gd_info' => $gd_info,
+                        'file_checktype' => $file_type,
+                        'mime_content_type' => $mime_content,
                     ],
                 ]);
             }
@@ -1063,6 +1086,22 @@ class Ajax {
             }
 
             if (empty($metadata)) {
+                $editor = wp_get_image_editor($file);
+                $editor_info = [];
+                if (is_wp_error($editor)) {
+                    $editor_info['error'] = $editor->get_error_message();
+                } else {
+                    $editor_info['class'] = is_object($editor) ? get_class($editor) : null;
+                }
+
+                $gd_info = null;
+                if (function_exists('gd_info')) {
+                    $gd_info = @gd_info();
+                }
+
+                $file_type = wp_check_filetype($file);
+                $mime_content = function_exists('mime_content_type') ? @mime_content_type($file) : null;
+
                 wp_send_json_success([
                     'attachment_id' => $attachment_id,
                     'restored' => 0,
@@ -1070,6 +1109,12 @@ class Ajax {
                     'diagnostics' => [
                         'metadata_generated' => $metadata_generated,
                         'metadata' => $metadata,
+                        'image_editor' => $editor_info,
+                        'imagick_available' => class_exists('Imagick'),
+                        'gd_available' => function_exists('gd_info'),
+                        'gd_info' => $gd_info,
+                        'file_checktype' => $file_type,
+                        'mime_content_type' => $mime_content,
                     ],
                 ]);
             }
