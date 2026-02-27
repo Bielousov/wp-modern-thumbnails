@@ -687,6 +687,14 @@ class Ajax {
             
             $metadata = wp_get_attachment_metadata($attachment_id);
 
+            // Validate and repair broken metadata (detects orphaned sizes, invalid dimensions, etc.)
+            if (!empty($metadata) && is_array($metadata)) {
+                $metadata = self::validateAndRepairMetadata($attachment_id, $file, $metadata);
+                if ($metadata) {
+                    wp_update_attachment_metadata($attachment_id, $metadata);
+                }
+            }
+
             // If metadata is missing or lacks sizes, attempt to generate it (covers Gutenberg/REST uploads)
             $metadata_generated = false;
             if (empty($metadata) || empty($metadata['sizes'])) {
@@ -1493,6 +1501,115 @@ class Ajax {
         } catch (\Exception $e) {
             wp_send_json_error('Error regenerating attachment');
         }
+    }
+
+    /**
+     * Validate and repair broken metadata
+     * 
+     * Detects and fixes:
+     * - Invalid dimensions (0, 1, or missing)
+     * - Orphaned sizes (not matching registered image sizes)
+     * - Missing size files on disk
+     * - Inconsistent metadata structure
+     * 
+     * @param int $attachment_id
+     * @param string $file Absolute path to source file
+     * @param array $metadata Existing (potentially broken) metadata
+     * @return array|false Repaired metadata or false if unrecoverable
+     */
+    private static function validateAndRepairMetadata($attachment_id, $file, $metadata) {
+        if (empty($metadata) || !is_array($metadata)) {
+            return $metadata;
+        }
+
+        $attachment_dir = dirname($file);
+        $image_sizes = \ModernMediaThumbnails\ImageSizeManager::getAllImageSizes();
+        $repaired = false;
+
+        // Fix invalid main image dimensions
+        $width = intval($metadata['width'] ?? 0);
+        $height = intval($metadata['height'] ?? 0);
+        if ($width <= 1 || $height <= 1) {
+            $real_dims = self::getImageDimensionsFromFile($attachment_id, $file);
+            if ($real_dims) {
+                $metadata['width'] = $real_dims['width'];
+                $metadata['height'] = $real_dims['height'];
+                $repaired = true;
+            }
+        }
+
+        // Validate and repair sizes
+        if (!empty($metadata['sizes']) && is_array($metadata['sizes'])) {
+            $valid_sizes = [];
+
+            foreach ($metadata['sizes'] as $size_name => $size_data) {
+                // Skip sizes that don't match registered image sizes
+                if (!isset($image_sizes[$size_name])) {
+                    $repaired = true;
+                    continue; // Skip orphaned size
+                }
+
+                if (!is_array($size_data)) {
+                    $repaired = true;
+                    continue;
+                }
+
+                // Check if size file exists on disk
+                if (!empty($size_data['file'])) {
+                    $size_file = $attachment_dir . '/' . $size_data['file'];
+                    if (!file_exists($size_file)) {
+                        // File missing - will be regenerated, so skip for now
+                        $repaired = true;
+                        continue;
+                    }
+                }
+
+                // Fix invalid size dimensions
+                $s_width = intval($size_data['width'] ?? 0);
+                $s_height = intval($size_data['height'] ?? 0);
+                if ($s_width <= 0 || $s_height <= 0) {
+                    // Try to read actual dimensions from file
+                    if (!empty($size_data['file'])) {
+                        $size_file = $attachment_dir . '/' . $size_data['file'];
+                        $size_dims = @getimagesize($size_file);
+                        if ($size_dims && isset($size_dims[0], $size_dims[1])) {
+                            $size_data['width'] = $size_dims[0];
+                            $size_data['height'] = $size_dims[1];
+                            $repaired = true;
+                        } else {
+                            // Can't read dimensions and they're invalid, skip this size
+                            $repaired = true;
+                            continue;
+                        }
+                    } else {
+                        // No file, skip
+                        $repaired = true;
+                        continue;
+                    }
+                }
+
+                $valid_sizes[$size_name] = $size_data;
+            }
+
+            $metadata['sizes'] = $valid_sizes;
+        }
+
+        return $repaired ? $metadata : $metadata;
+    }
+
+    /**
+     * Get image dimensions from file using getimagesize
+     * 
+     * @param int $attachment_id
+     * @param string $file Absolute path
+     * @return array|false Array with 'width' and 'height', or false
+     */
+    private static function getImageDimensionsFromFile($attachment_id, $file) {
+        $size = @getimagesize($file);
+        if ($size && isset($size[0], $size[1]) && $size[0] > 0 && $size[1] > 0) {
+            return ['width' => $size[0], 'height' => $size[1]];
+        }
+        return false;
     }
 
     /**
