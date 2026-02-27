@@ -574,14 +574,24 @@ class Ajax {
             
             $file = get_attached_file($attachment_id);
 
+            // Diagnostics list to return paths we checked and whether they existed
+            $diagnostics = [];
+            $upload_dir = wp_upload_dir();
+
+            if ($file) {
+                $diagnostics[] = ['path' => $file, 'exists' => file_exists($file)];
+            } else {
+                $diagnostics[] = ['path' => null, 'exists' => false];
+            }
+
             // Robust fallback: if get_attached_file() points to a missing path, try metadata and common extensions.
             if (!$file || !file_exists($file)) {
                 $metadata = wp_get_attachment_metadata($attachment_id);
-                $upload_dir = wp_upload_dir();
 
                 // Try metadata 'file' (may be relative path)
                 if (!empty($metadata['file'])) {
                     $try = trailingslashit($upload_dir['basedir']) . ltrim($metadata['file'], '/');
+                    $diagnostics[] = ['path' => $try, 'exists' => file_exists($try)];
                     if (file_exists($try)) {
                         $file = $try;
                     }
@@ -592,6 +602,7 @@ class Ajax {
                     $base = preg_replace('/\.[^\.]+$/', '', $metadata['file']);
                     foreach (array('jpg', 'jpeg', 'png', 'gif', 'webp') as $ext) {
                         $candidate = trailingslashit($upload_dir['basedir']) . $base . '.' . $ext;
+                        $diagnostics[] = ['path' => $candidate, 'exists' => file_exists($candidate)];
                         if (file_exists($candidate)) {
                             $file = $candidate;
                             break;
@@ -604,6 +615,7 @@ class Ajax {
                         'attachment_id' => $attachment_id,
                         'regenerated' => 0,
                         'message' => 'Skipped (file not found)',
+                        'diagnostics' => $diagnostics,
                     ]);
                 }
             }
@@ -969,11 +981,31 @@ class Ajax {
             }
 
             $file = get_attached_file($attachment_id);
+
+            // Diagnostics for missing file resolution
+            $diagnostics = [];
+            $upload_dir = wp_upload_dir();
+
+            if ($file) {
+                $diagnostics[] = ['path' => $file, 'exists' => file_exists($file)];
+            } else {
+                $diagnostics[] = ['path' => null, 'exists' => false];
+            }
+
             if (!$file || !file_exists($file)) {
+                // Try metadata 'file' path
+                $metadata_try = wp_get_attachment_metadata($attachment_id);
+                if (!empty($metadata_try['file'])) {
+                    $try = trailingslashit($upload_dir['basedir']) . ltrim($metadata_try['file'], '/');
+                    $diagnostics[] = ['path' => $try, 'exists' => file_exists($try)];
+                }
+
+                // Return diagnostics so the caller can inspect attempted paths
                 wp_send_json_success([
                     'attachment_id' => $attachment_id,
                     'restored' => 0,
                     'message' => 'Skipped (file not found)',
+                    'diagnostics' => $diagnostics,
                 ]);
             }
 
