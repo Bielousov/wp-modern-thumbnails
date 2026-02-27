@@ -637,11 +637,31 @@ class Ajax {
             }
             
             $metadata = wp_get_attachment_metadata($attachment_id);
+
+            // If metadata is missing or lacks sizes, attempt to generate it (covers Gutenberg/REST uploads)
+            $metadata_generated = false;
+            if (empty($metadata) || empty($metadata['sizes'])) {
+                try {
+                    $generated = wp_generate_attachment_metadata($attachment_id, $file);
+                    if (!empty($generated) && is_array($generated)) {
+                        wp_update_attachment_metadata($attachment_id, $generated);
+                        $metadata = $generated;
+                        $metadata_generated = true;
+                    }
+                } catch (\Exception $e) {
+                    // ignore generation errors
+                }
+            }
+
             if (empty($metadata) || empty($metadata['sizes'])) {
                 wp_send_json_success([
                     'attachment_id' => $attachment_id,
                     'regenerated' => 0,
                     'message' => 'Skipped (no thumbnails)',
+                    'diagnostics' => [
+                        'metadata_generated' => $metadata_generated,
+                        'metadata' => $metadata,
+                    ],
                 ]);
             }
             
