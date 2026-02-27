@@ -687,6 +687,17 @@ class Ajax {
                     ],
                 ]);
             }
+
+            /**
+             * Fallback: when metadata generation failed, try to build thumbnails
+             * using WP_Image_Editor and persist metadata so processing can continue.
+             */
+            if (empty($metadata) || empty($metadata['sizes'])) {
+                $generated_meta = self::generateMetadataWithEditor($attachment_id, $file);
+                if (!empty($generated_meta) && is_array($generated_meta)) {
+                    $metadata = $generated_meta;
+                }
+            }
             
             // Load source image once for all sizes
             try {
@@ -1428,6 +1439,89 @@ class Ajax {
             ]);
         } catch (\Exception $e) {
             wp_send_json_error('Error regenerating attachment');
+        }
+    }
+
+    /**
+     * Try to generate attachment metadata and sizes using WP_Image_Editor.
+     * Returns generated metadata array on success or false on failure.
+     *
+     * @param int $attachment_id
+     * @param string $file Absolute path to source file
+     * @return array|false
+     */
+    private static function generateMetadataWithEditor($attachment_id, $file) {
+        try {
+            $editor_class = wp_get_image_editor($file);
+            if (is_wp_error($editor_class)) {
+                return false;
+            }
+
+            $image_sizes = \ModernMediaThumbnails\ImageSizeManager::getAllImageSizes();
+
+            // Get source dimensions
+            $size = @getimagesize($file);
+            if (!$size || !isset($size[0], $size[1])) {
+                return false;
+            }
+
+            $metadata = [];
+            $metadata['file'] = ltrim(str_replace(trailingslashit(wp_get_upload_dir()['basedir']) . '', '', $file), '/');
+            $metadata['width'] = intval($size[0]);
+            $metadata['height'] = intval($size[1]);
+            $metadata['sizes'] = [];
+
+            $attachment_dir = dirname($file);
+
+            foreach ($image_sizes as $size_name => $size_info) {
+                $width = isset($size_info['width']) ? intval($size_info['width']) : 0;
+                $height = isset($size_info['height']) ? intval($size_info['height']) : 0;
+                $crop = isset($size_info['crop']) ? (bool)$size_info['crop'] : false;
+
+                if (!$width || !$height) {
+                    continue;
+                }
+
+                // Create a fresh editor instance per size to avoid stale state
+                $editor = wp_get_image_editor($file);
+                if (is_wp_error($editor)) {
+                    continue;
+                }
+
+                $resized = $editor->resize($width, $height, $crop);
+                if (is_wp_error($resized)) {
+                    continue;
+                }
+
+                $ext = pathinfo($file, PATHINFO_EXTENSION);
+                $size_filename = pathinfo($file, PATHINFO_FILENAME) . '-' . $size_name . '.' . $ext;
+                $target = $attachment_dir . '/' . $size_filename;
+                wp_mkdir_p(dirname($target));
+                $saved = $editor->save($target);
+                if (is_wp_error($saved) || empty($saved['path']) || !file_exists($saved['path'])) {
+                    continue;
+                }
+
+                $metadata['sizes'][$size_name] = [
+                    'file' => basename($saved['path']),
+                    'width' => $saved['width'] ?? $width,
+                    'height' => $saved['height'] ?? $height,
+                ];
+
+                if (method_exists($editor, 'clear')) {
+                    $editor->clear();
+                }
+            }
+
+            if (empty($metadata['sizes'])) {
+                return false;
+            }
+
+            // Persist metadata
+            wp_update_attachment_metadata($attachment_id, $metadata);
+            return $metadata;
+        } catch (\Exception $e) {
+            return false;
         }
     }
     
