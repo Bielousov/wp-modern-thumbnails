@@ -34,6 +34,10 @@ class MetadataManager {
         // Also ensure metadata is corrected when metadata is updated via wp_update_attachment_metadata
         // (covers REST API / Gutenberg upload flows which may update metadata via action)
         add_action('wp_update_attachment_metadata', [self::class, 'onMetadataUpdate'], 10, 2);
+
+        // Ensure media responses used by the block editor reflect updated metadata
+        add_filter('wp_prepare_attachment_for_js', [self::class, 'filterPrepareAttachmentForJS'], 10, 3);
+        add_filter('rest_prepare_attachment', [self::class, 'filterRestPrepareAttachment'], 10, 3);
     }
     
     /**
@@ -202,6 +206,101 @@ class MetadataManager {
             // Update in database
             update_post_meta($attachment_id, '_wp_attachment_metadata', $updated_metadata);
         }
+    }
+
+    /**
+     * Ensure the data returned to the old media modal / media JS matches updated metadata
+     *
+     * @param array $response Prepared attachment array
+     * @param WP_Post|int $attachment Attachment post or ID
+     * @param array|null $meta Optional metadata passed by caller
+     * @return array
+     */
+    public static function filterPrepareAttachmentForJS($response, $attachment, $meta = null) {
+        $attachment_id = is_object($attachment) && isset($attachment->ID) ? $attachment->ID : intval($attachment);
+        if (!$attachment_id) {
+            return $response;
+        }
+
+        $metadata = wp_get_attachment_metadata($attachment_id);
+        if (empty($metadata) || !is_array($metadata)) {
+            return $response;
+        }
+
+        $updated = self::updateMetadataWithWebP($attachment_id, $metadata);
+
+        if (!empty($updated['sizes']) && !empty($response['sizes']) && is_array($response['sizes'])) {
+            foreach ($updated['sizes'] as $size_name => $size_data) {
+                if (isset($response['sizes'][$size_name]) && is_array($response['sizes'][$size_name])) {
+                    if (!empty($size_data['file'])) {
+                        $response['sizes'][$size_name]['file'] = $size_data['file'];
+                    }
+                    if (!empty($size_data['width'])) {
+                        $response['sizes'][$size_name]['width'] = intval($size_data['width']);
+                    }
+                    if (!empty($size_data['height'])) {
+                        $response['sizes'][$size_name]['height'] = intval($size_data['height']);
+                    }
+                    if (!empty($size_data['mime-type'])) {
+                        // Some consumers expect 'mime' or 'mime_type' keys; set both conservatively
+                        $response['sizes'][$size_name]['mime'] = $size_data['mime-type'];
+                        $response['sizes'][$size_name]['mime_type'] = $size_data['mime-type'];
+                    }
+                }
+            }
+        }
+
+        return $response;
+    }
+
+    /**
+     * Ensure REST attachment responses include the updated metadata (used by Gutenberg)
+     *
+     * @param WP_REST_Response $response
+     * @param WP_Post $post
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response
+     */
+    public static function filterRestPrepareAttachment($response, $post, $request) {
+        if (!method_exists($response, 'get_data')) {
+            return $response;
+        }
+
+        $data = $response->get_data();
+        $attachment_id = intval($post->ID);
+
+        if (!$attachment_id) {
+            return $response;
+        }
+
+        $metadata = wp_get_attachment_metadata($attachment_id);
+        if (empty($metadata) || !is_array($metadata)) {
+            return $response;
+        }
+
+        $updated = self::updateMetadataWithWebP($attachment_id, $metadata);
+
+        if (!empty($updated['sizes']) && isset($data['media_details']['sizes']) && is_array($data['media_details']['sizes'])) {
+            foreach ($updated['sizes'] as $size_name => $size_data) {
+                if (isset($data['media_details']['sizes'][$size_name]) && is_array($data['media_details']['sizes'][$size_name])) {
+                    if (!empty($size_data['file'])) {
+                        $data['media_details']['sizes'][$size_name]['file'] = $size_data['file'];
+                    }
+                    if (!empty($size_data['width'])) {
+                        $data['media_details']['sizes'][$size_name]['width'] = intval($size_data['width']);
+                    }
+                    if (!empty($size_data['height'])) {
+                        $data['media_details']['sizes'][$size_name]['height'] = intval($size_data['height']);
+                    }
+                    if (!empty($size_data['mime-type'])) {
+                        $data['media_details']['sizes'][$size_name]['mime_type'] = $size_data['mime-type'];
+                    }
+                }
+            }
+            $response->set_data($data);
+        }
+
+        return $response;
     }
     
     /**
