@@ -203,6 +203,34 @@
                             const mediaIcon = postElement?.querySelector('.media-icon img');
                             if (mediaIcon) {
                                 mediaIcon.src = selectedThumbnailUrl;
+                                
+                                // Update width and height attributes
+                                // Try to get dimensions from metadata.sizes.thumbnail first
+                                let thumbWidth = null;
+                                let thumbHeight = null;
+                                
+                                if (result.data && result.data.attachment && result.data.attachment.sizes && result.data.attachment.sizes.thumbnail) {
+                                    thumbWidth = result.data.attachment.sizes.thumbnail.width;
+                                    thumbHeight = result.data.attachment.sizes.thumbnail.height;
+                                } else {
+                                    // Fallback: extract dimensions from class (e.g., "attachment-60x60" -> 60)
+                                    const classMatch = mediaIcon.className.match(/attachment-(\d+)x(\d+)/);
+                                    if (classMatch) {
+                                        thumbWidth = parseInt(classMatch[1]);
+                                        thumbHeight = parseInt(classMatch[2]);
+                                    }
+                                }
+                                
+                                // Update attributes if we have dimensions
+                                if (thumbWidth && thumbHeight) {
+                                    mediaIcon.setAttribute('width', thumbWidth);
+                                    mediaIcon.setAttribute('height', thumbHeight);
+                                } else {
+                                    // If we can't determine dimensions, remove the broken 1x1 attributes
+                                    mediaIcon.removeAttribute('width');
+                                    mediaIcon.removeAttribute('height');
+                                }
+                                
                                 // Also update srcset and other attributes if they exist
                                 if (mediaIcon.hasAttribute('srcset')) {
                                     mediaIcon.removeAttribute('srcset');
@@ -218,6 +246,31 @@
                                 allImgs.forEach(img => {
                                     if (img.closest('.media-icon')) {
                                         img.src = selectedThumbnailUrl;
+                                        
+                                        // Update width and height attributes
+                                        let thumbWidth = null;
+                                        let thumbHeight = null;
+                                        
+                                        if (result.data && result.data.attachment && result.data.attachment.sizes && result.data.attachment.sizes.thumbnail) {
+                                            thumbWidth = result.data.attachment.sizes.thumbnail.width;
+                                            thumbHeight = result.data.attachment.sizes.thumbnail.height;
+                                        } else {
+                                            // Fallback: extract dimensions from class
+                                            const classMatch = img.className.match(/attachment-(\d+)x(\d+)/);
+                                            if (classMatch) {
+                                                thumbWidth = parseInt(classMatch[1]);
+                                                thumbHeight = parseInt(classMatch[2]);
+                                            }
+                                        }
+                                        
+                                        if (thumbWidth && thumbHeight) {
+                                            img.setAttribute('width', thumbWidth);
+                                            img.setAttribute('height', thumbHeight);
+                                        } else {
+                                            img.removeAttribute('width');
+                                            img.removeAttribute('height');
+                                        }
+                                        
                                         if (img.hasAttribute('srcset')) {
                                             img.removeAttribute('srcset');
                                         }
@@ -226,6 +279,52 @@
                                         }
                                     }
                                 });
+                            }
+                        }
+                    }
+                    
+                    // Update image dimensions if available in response
+                    if (result.data && result.data.image_width && result.data.image_height) {
+                        const postElement = document.getElementById('post-' + imageId);
+                        if (postElement) {
+                            const dimensionText = `${result.data.image_width} × ${result.data.image_height}`;
+                            
+                            // Try multiple selectors to find the dimensions column in different WordPress versions
+                            let dimensionFound = false;
+                            
+                            // Try data-attribute selector
+                            const colByAttribute = postElement.querySelector('[data-colname="dimensions"]');
+                            if (colByAttribute) {
+                                const span = colByAttribute.querySelector('span');
+                                if (span) {
+                                    span.textContent = dimensionText;
+                                } else {
+                                    colByAttribute.textContent = dimensionText;
+                                }
+                                dimensionFound = true;
+                            }
+                            
+                            // Try finding by class
+                            if (!dimensionFound) {
+                                const colByClass = postElement.querySelector('.column-media .desc, .column-dimensions');
+                                if (colByClass) {
+                                    colByClass.textContent = dimensionText;
+                                    dimensionFound = true;
+                                }
+                            }
+                            
+                            // Try finding any cell that contains dimension-looking text
+                            if (!dimensionFound) {
+                                const allCells = postElement.querySelectorAll('td');
+                                for (const cell of allCells) {
+                                    const text = cell.textContent.trim();
+                                    // Check if this cell looks like it contains dimensions (e.g., "1920 × 1277")
+                                    if (/^\d+\s*×\s*\d+$/.test(text)) {
+                                        cell.textContent = dimensionText;
+                                        dimensionFound = true;
+                                        break;
+                                    }
+                                }
                             }
                         }
                     }

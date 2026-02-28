@@ -1641,6 +1641,10 @@ class Ajax {
             // Also fetch full attachment data for WordPress admin media library refresh
             $attachment = wp_prepare_attachment_for_js($post_id);
             
+            // Extract dimensions for easier access in JavaScript
+            $image_width = isset($updated_metadata['width']) ? intval($updated_metadata['width']) : 0;
+            $image_height = isset($updated_metadata['height']) ? intval($updated_metadata['height']) : 0;
+            
             wp_send_json_success([
                 'message' => $message,
                 'post_id' => $post_id,
@@ -1649,6 +1653,8 @@ class Ajax {
                 'formats' => $enabled_formats,
                 'thumbnails' => $thumbnails,
                 'thumbnail_url' => $thumbnail_url,
+                'image_width' => $image_width,
+                'image_height' => $image_height,
                 'attachment' => $attachment // Full attachment data for admin refresh
             ]);
         } catch (\Exception $e) {
