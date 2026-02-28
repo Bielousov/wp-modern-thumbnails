@@ -138,13 +138,7 @@ class RegenerationManager {
             
             // Generate original format if enabled - pass imagick object
             if (FormatManager::shouldKeepOriginal()) {
-                $format_map = [
-                    'image/jpeg' => 'jpg',
-                    'image/png' => 'png',
-                    'image/gif' => 'gif',
-                    'image/webp' => 'webp',
-                ];
-                $original_format = $format_map[$source_mime] ?? 'jpg';
+                $original_format = mmt_get_format_from_mime($source_mime, 'jpg');
                 $original_file = preg_replace('/\.[^.]+$/', '.' . $original_format, $size_file);
                 
                 if (ThumbnailGenerator::generateThumbnail($imagick, $original_file, $width, $height, $crop, $original_format, $original_quality)) {

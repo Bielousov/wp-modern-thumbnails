@@ -25,11 +25,7 @@ class Ajax {
      * @return void
      */
     public static function regenerateAll() {
-        check_ajax_referer('mmt_regenerate_nonce', 'nonce');
-        
-        if (!current_user_can('manage_options')) {
-            wp_send_json_error('Insufficient permissions');
-        }
+        mmt_check_ajax_permissions('mmt_regenerate_nonce', 'nonce');
         
         $regenerated = RegenerationManager::regenerateSize();
         
@@ -48,11 +44,7 @@ class Ajax {
      * @return void
      */
     public static function regenerateSize() {
-        check_ajax_referer('mmt_regenerate_nonce', 'nonce');
-        
-        if (!current_user_can('manage_options')) {
-            wp_send_json_error('Insufficient permissions');
-        }
+        mmt_check_ajax_permissions('mmt_regenerate_nonce', 'nonce');
         
         $size_name = isset($_POST['size']) ? sanitize_text_field(wp_unslash($_POST['size'])) : null;
         $attachment_id = isset($_POST['attachment_id']) ? intval($_POST['attachment_id']) : 0;
@@ -153,7 +145,7 @@ class Ajax {
         try {
             $attachment = get_post($attachment_id);
             
-            if (!$attachment || !in_array($attachment->post_mime_type, ['image/jpeg', 'image/png', 'image/gif', 'image/webp'])) {
+            if (!mmt_is_valid_image_attachment($attachment)) {
                 return 0;
             }
             
@@ -401,18 +393,11 @@ class Ajax {
         $avif_quality = intval($all_settings['avif_quality']);
         
         // Map MIME type to format for original generation
-        $format_map = [
-            'image/jpeg' => 'jpg',
-            'image/png' => 'png',
-            'image/gif' => 'gif',
-            'image/webp' => 'webp',
-        ];
-        
-        $original_format = $format_map[$original_mime_type] ?? 'jpg';
+        $original_format = mmt_get_format_from_mime($original_mime_type, 'jpg');
         
         // Remove existing files for this size
         $size_base = preg_replace('/\.[^\.]+$/', '', $size_file);
-        self::deleteExistingFiles($size_base);
+        mmt_delete_image_variants($size_base);
         
         // Handle GIF files specially - if convert_gif is disabled, only create GIF
         if ($original_mime_type === 'image/gif' && !$convert_gif) {
@@ -525,39 +510,7 @@ class Ajax {
      * @param string $size_base Base path without extension (e.g. /path/to/image-medium)
      * @return void
      */
-    private static function deleteExistingFiles($size_base) {
-        $formats = ['webp', 'avif', 'png', 'jpg', 'jpeg', 'gif'];
-        
-        // Delete known formats
-        foreach ($formats as $format) {
-            $file = $size_base . '.' . $format;
-            if (file_exists($file)) {
-                @wp_delete_file($file);
-            }
-        }
-        
-        // Additional aggressive cleanup: find and remove any other files in the same directory
-        // that match the size basename pattern (covers edge cases where wp_get_image_editor 
-        // may have saved with a different naming scheme)
-        $dir = dirname($size_base);
-        $basename = basename($size_base);
-        
-        if (is_dir($dir)) {
-            $files = @scandir($dir);
-            if ($files && is_array($files)) {
-                foreach ($files as $file_name) {
-                    // Match files that start with the size basename and may have any extension
-                    if (strpos($file_name, $basename) === 0) {
-                        $full_path = $dir . '/' . $file_name;
-                        // Don't delete directories or the original fullsize file
-                        if (is_file($full_path) && $file_name !== $basename) {
-                            @wp_delete_file($full_path);
-                        }
-                    }
-                }
-            }
-        }
-    }
+
     
     /**
      * Handle AJAX settings save
@@ -850,7 +803,7 @@ class Ajax {
         try {
             $attachment = get_post($attachment_id);
             
-            if (!$attachment || !in_array($attachment->post_mime_type, ['image/jpeg', 'image/png', 'image/gif', 'image/webp'])) {
+            if (!mmt_is_valid_image_attachment($attachment, ['image/jpeg', 'image/png', 'image/gif', 'image/webp'])) {
                 wp_send_json_success([
                     'attachment_id' => $attachment_id,
                     'regenerated' => 0,
@@ -1008,7 +961,7 @@ class Ajax {
             // Regenerate thumbnails for this single attachment and specific size
             $attachment = get_post($attachment_id);
             
-            if (!$attachment || !in_array($attachment->post_mime_type, ['image/jpeg', 'image/png', 'image/gif', 'image/webp'])) {
+            if (!mmt_is_valid_image_attachment($attachment, ['image/jpeg', 'image/png', 'image/gif', 'image/webp'])) {
                 wp_send_json_success([
                     'attachment_id' => $attachment_id,
                     'regenerated' => 0,
@@ -1105,13 +1058,7 @@ class Ajax {
                     
                     // Generate original format if enabled - pass imagick object
                     if (FormatManager::shouldKeepOriginal()) {
-                        $format_map = [
-                            'image/jpeg' => 'jpg',
-                            'image/png' => 'png',
-                            'image/gif' => 'gif',
-                            'image/webp' => 'webp',
-                        ];
-                        $original_format = $format_map[$source_mime] ?? 'jpg';
+                        $original_format = mmt_get_format_from_mime($source_mime, 'jpg');
                         $original_file = preg_replace('/\.[^\.]+$/', '.' . $original_format, $size_file);
                         
                         $orig_result = \ModernMediaThumbnails\ThumbnailGenerator::generateThumbnail($imagick, $original_file, $width, $height, $crop, $original_format, $original_quality);
@@ -1228,7 +1175,7 @@ class Ajax {
         try {
             $attachment = get_post($attachment_id);
 
-            if (!$attachment || !in_array($attachment->post_mime_type, ['image/jpeg', 'image/png', 'image/gif', 'image/webp'])) {
+            if (!mmt_is_valid_image_attachment($attachment, ['image/jpeg', 'image/png', 'image/gif', 'image/webp'])) {
                 wp_send_json_success([
                     'attachment_id' => $attachment_id,
                     'restored' => 0,
@@ -1513,11 +1460,7 @@ class Ajax {
      */
     public static function regenerateSingle() {
         // Check nonce - use correct action name
-        check_ajax_referer('mmt_bulk_action_nonce', '_wpnonce');
-        
-        if (!current_user_can('edit_posts')) {
-            wp_send_json_error('Insufficient permissions');
-        }
+        mmt_check_ajax_permissions('mmt_bulk_action_nonce', '_wpnonce', 'edit_posts');
         
         $post_id = isset($_POST['post_id']) ? intval($_POST['post_id']) : 0;
         
@@ -1525,9 +1468,8 @@ class Ajax {
             wp_send_json_error('Invalid post ID');
         }
         
-        // Verify attachment exists
-        $attachment = get_post($post_id);
-        if (!$attachment || 'attachment' !== $attachment->post_type) {
+        // Verify attachment exists and is valid image
+        if (!mmt_is_valid_image_attachment($post_id)) {
             wp_send_json_error('Invalid attachment');
         }
         
@@ -1537,19 +1479,11 @@ class Ajax {
             $regenerated = self::regenerateAttachmentSize($post_id, null);
             
             // Get the metadata that was already saved by regenerateAttachmentSize
-            $updated_metadata = wp_get_attachment_metadata($post_id);
+            $updated_metadata = mmt_get_metadata_safe($post_id);
             
-            // wp_get_attachment_metadata returns false if metadata doesn't exist, or array if it does
-            if ($updated_metadata === false) {
+            if (!$updated_metadata) {
                 error_log('Modern Thumbnails: Failed to get metadata for post ' . $post_id);
                 wp_send_json_error('Failed to retrieve attachment metadata');
-                return;
-            }
-            
-            // If no metadata array, something went wrong
-            if (!is_array($updated_metadata)) {
-                error_log('Modern Thumbnails: Metadata is not an array for post ' . $post_id);
-                wp_send_json_error('Invalid metadata format');
                 return;
             }
             
@@ -1689,7 +1623,7 @@ class Ajax {
         $width = intval($metadata['width'] ?? 0);
         $height = intval($metadata['height'] ?? 0);
         if ($width <= 1 || $height <= 1) {
-            $real_dims = self::getImageDimensionsFromFile($attachment_id, $file);
+            $real_dims = mmt_get_image_dimensions($file, true);
             if ($real_dims) {
                 $metadata['width'] = $real_dims['width'];
                 $metadata['height'] = $real_dims['height'];
@@ -1763,13 +1697,7 @@ class Ajax {
      * @param string $file Absolute path
      * @return array|false Array with 'width' and 'height', or false
      */
-    private static function getImageDimensionsFromFile($attachment_id, $file) {
-        $size = @getimagesize($file);
-        if ($size && isset($size[0], $size[1]) && $size[0] > 0 && $size[1] > 0) {
-            return ['width' => $size[0], 'height' => $size[1]];
-        }
-        return false;
-    }
+
 
     /**
      * Try to generate attachment metadata and sizes using WP_Image_Editor.
