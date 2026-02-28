@@ -3,7 +3,7 @@
  * Plugin Name: Modern Thumbnails
  * Description: Generate WebP thumbnails based on theme-defined image sizes. Requires ImageMagick PHP extension.
  * Plugin URI: https://logovo.ca/wordpress-modern-thumbnails-plugin/
- * Version: 0.0.5
+ * Version: 0.1.0
  * Author: Logovo, Inc.
  * Author URI: https://logovo.ca/
  * License: GPL v2 or later
@@ -25,7 +25,7 @@ if (!defined('ABSPATH')) {
 // Define plugin constants
 define('MMT_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('MMT_PLUGIN_URL', plugin_dir_url(__FILE__));
-define( 'MMT_PLUGIN_VERSION', '0.0.5' );
+define( 'MMT_PLUGIN_VERSION', '0.1.0' );
 
 // Autoloader for plugin classes
 spl_autoload_register(function ($class) {

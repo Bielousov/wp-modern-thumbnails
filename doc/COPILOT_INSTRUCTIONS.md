@@ -204,13 +204,33 @@ All CSS properties must be organized in the following order within each rule:
 - Generate translation template file (.pot) during releases
 
 ### 7. Version Management
-- Current version: **0.0.5**
+- Current version: **0.1.0**
 - Update in all three locations:
   1. `index.php` — Plugin header `Version:` field
   2. `index.php` — `MMT_PLUGIN_VERSION` constant
   3. `includes/Helpers.php` — `mmt_get_version()` default fallback
   4. `README.md` — `Stable Tag:` field and changelog
 - Semantic versioning: `major.minor.patch`
+
+### 7.1 Release Notes Format
+- Keep release notes **concise and brief** — similar to previous versions
+- Use simple `### Highlights` format with bullet points
+- Avoid long explanatory sections or repeated details
+- Focus on: what was fixed/added, key improvements, and notable changes
+- Add new releases at the **top** of `doc/RELEASE-NOTES.md` with:
+  - `## Version X.X.X` heading
+  - `**Release Date:` line  
+  - `### Highlights` section with 5-8 bullet points max
+- Example format (see 0.0.5 section in RELEASE-NOTES.md):
+  ```markdown
+  ## Version 0.0.5
+  **Release Date:** February 26, 2026
+  
+  ### Highlights
+  - Feature/bug fix description
+  - Another improvement
+  - Code quality change
+  ```
 
 ### 8. Thumbnail File Naming Convention (CRITICAL)
 

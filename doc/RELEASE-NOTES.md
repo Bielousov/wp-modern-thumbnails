@@ -1,5 +1,20 @@
 # Modern Thumbnails - Release Notes
 
+## Version 0.1.0
+
+**Release Date:** February 27, 2026
+
+### Highlights
+
+- Fixed critical metadata persistence bug where attachment dimensions weren't saving to database after thumbnail regeneration
+- Created new `includes/Helpers.php` module with 17 reusable utility functions (AJAX permissions, image validation, dimension handling, metadata storage)
+- Refactored `Ajax.php` to use centralized helpers, removing 34+ lines of duplicate code
+- Consolidated MIME→format mapping from 2 duplicates into single helper function
+- Enhanced batch processing UI to update image dimensions and attributes in real-time
+- Improved code maintainability while maintaining 100% backward compatibility
+
+---
+
 ## Version 0.0.5
 
 **Release Date:** February 26, 2026
