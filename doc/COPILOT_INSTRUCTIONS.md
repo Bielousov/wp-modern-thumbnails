@@ -212,7 +212,65 @@ All CSS properties must be organized in the following order within each rule:
   4. `README.md` — `Stable Tag:` field and changelog
 - Semantic versioning: `major.minor.patch`
 
-### 8. File Organization
+### 8. Thumbnail File Naming Convention (CRITICAL)
+
+**REQUIREMENT**: All generated thumbnail files MUST use ONLY the actual width and height dimensions in their filenames. This pattern MUST NEVER change.
+
+#### File Naming Pattern
+```
+{basename}-{actual_width}x{actual_height}.{format}
+```
+
+**Examples:**
+- ✅ `image-960x639.webp` — Correct: actual dimensions only
+- ✅ `photo-200x200.jpg` — Correct: actual dimensions only
+- ✅ `banner-1200x798.avif` — Correct: actual dimensions only
+- ❌ `image-960x640-960x639.webp` — WRONG: contains both registered AND actual dimensions
+- ❌ `photo-200x200-actual.jpg` — WRONG: includes extra text
+- ❌ `image-960x640-medium.webp` — WRONG: contains thumbnail size name
+- ❌ `banner-960x640.avif` — WRONG: uses registered dimensions instead of actual
+
+#### Why This Matters
+1. **Consistency**: Ensures predictable file naming across all generation methods
+2. **Metadata Accuracy**: Files on disk must match dimension data in metadata arrays
+3. **Admin Display**: WordPress media library displays dimensions from metadata; files must match
+4. **Performance**: Prevents duplicate/orphaned files from mismatched naming schemes
+5. **WebP/AVIF Variants**: All format variants use the SAME dimensions in filename
+
+#### Implementation
+When renaming generated files to reflect actual dimensions:
+
+```php
+// CORRECT: Use only actual dimensions
+$file_new = $attachment_dir . '/' . $base_filename . '-' . $actual_width . 'x' . $actual_height . '.webp';
+rename( $file_old, $file_new );
+
+// WRONG: Don't append to registered dimensions
+$file_new = $attachment_dir . '/' . $base_filename . '-960x640-' . $actual_width . 'x' . $actual_height . '.webp';
+
+// WRONG: Don't use pathinfo on intermediate filename
+$file_new = dirname( $file_old ) . '/' . pathinfo( $file_old, PATHINFO_FILENAME ) . '-' . $actual_width . 'x' . $actual_height . '.webp';
+```
+
+#### Multi-Format Generation
+When generating WebP, AVIF, and original format variants, all formats for the same size use the same actual dimensions:
+
+```php
+// All generated from the same 960x639 resize:
+assorti-band-test-960x639.webp    // WebP variant
+assorti-band-test-960x639.jpg     // Original format variant
+assorti-band-test-960x639.avif    // AVIF variant
+```
+
+NOT:
+```php
+// Each file with different dimensions - WRONG
+assorti-band-test-960x639.webp
+assorti-band-test-960x640.jpg
+assorti-band-test-960x639.avif
+```
+
+### 9. File Organization
 
 ```
 modern-thumbnails/
@@ -240,13 +298,13 @@ modern-thumbnails/
 └── assets/                            # Images and other assets
 ```
 
-### 9. Commits & Documentation
+### 10. Commits & Documentation
 - Write clear commit messages describing what changed
 - Update `README.md` changelog for each release
 - Keep `/doc/` folder for internal technical documentation
 - Document complex functions with detailed PHPDoc comments
 
-### 10. Testing & Validation
+### 11. Testing & Validation
 
 Before committing:
 - Run PHPCS: `phpcs --standard=WordPress` (strict compliance)
@@ -255,7 +313,7 @@ Before committing:
 - Check database query preparation
 - Validate all superglobal handling with `wp_unslash()` + sanitization
 
-### 11. Common Pitfalls (AVOID)
+### 12. Common Pitfalls (AVOID)
 
 ❌ **Don't do this:**
 ```php
@@ -317,7 +375,7 @@ use SomeClass;
 // Handle in JavaScript or via data attributes
 ```
 
-### 12. Plugin Metadata
+### 13. Plugin Metadata
 
 - **Plugin Name**: Modern Thumbnails
 - **License**: GPL v2 or later

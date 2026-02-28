@@ -57,7 +57,7 @@ class UploadHooks {
         $source_mime = get_post_mime_type($attachment_id) ?: 'image/jpeg';
         
         // Always generate WebP for all thumbnails
-        $image_sizes = ImageSizeManager::getAllImageSizes();
+        $image_sizes = wp_get_registered_image_subsizes();
         
         // Process each image size
         if (!empty($metadata['sizes'])) {
@@ -83,7 +83,7 @@ class UploadHooks {
                         
                         // Always generate WebP - pass imagick object
                         $webp_file = preg_replace('/\.[^.]+$/', '.webp', $size_file);
-                        ThumbnailGenerator::generateWebP(
+                        $webp_result = ThumbnailGenerator::generateWebP(
                             $imagick,
                             $webp_file,
                             $width,
@@ -91,6 +91,17 @@ class UploadHooks {
                             $crop,
                             $webp_quality
                         );
+                        if ($webp_result && is_array($webp_result)) {
+                            // If actual dimensions differ, rename file
+                            if (isset($webp_result['actual_width']) && isset($webp_result['actual_height'])) {
+                                $actual_w = $webp_result['actual_width'];
+                                $actual_h = $webp_result['actual_height'];
+                                if ($actual_w !== $width || $actual_h !== $height) {
+                                    $webp_new = dirname($webp_file) . '/' . pathinfo($webp_file, PATHINFO_FILENAME) . '-' . $actual_w . 'x' . $actual_h . '.webp';
+                                    rename($webp_file, $webp_new);
+                                }
+                            }
+                        }
                         
                         // Generate original format if enabled - pass imagick object
                         if (FormatManager::shouldKeepOriginal()) {
@@ -103,7 +114,7 @@ class UploadHooks {
                             $original_format = $format_map[$source_mime] ?? 'jpg';
                             $original_file = preg_replace('/\.[^.]+$/', '.' . $original_format, $size_file);
                             
-                            ThumbnailGenerator::generateThumbnail(
+                            $orig_result = ThumbnailGenerator::generateThumbnail(
                                 $imagick,
                                 $original_file,
                                 $width,
@@ -112,12 +123,23 @@ class UploadHooks {
                                 $original_format,
                                 $original_quality
                             );
+                            if ($orig_result && is_array($orig_result)) {
+                                // If actual dimensions differ, rename file
+                                if (isset($orig_result['actual_width']) && isset($orig_result['actual_height'])) {
+                                    $actual_w = $orig_result['actual_width'];
+                                    $actual_h = $orig_result['actual_height'];
+                                    if ($actual_w !== $width || $actual_h !== $height) {
+                                        $orig_new = dirname($original_file) . '/' . pathinfo($original_file, PATHINFO_FILENAME) . '-' . $actual_w . 'x' . $actual_h . '.' . $original_format;
+                                        rename($original_file, $orig_new);
+                                    }
+                                }
+                            }
                         }
                         
                         // Generate AVIF if enabled - pass imagick object
                         if (FormatManager::shouldGenerateAVIF()) {
                             $avif_file = preg_replace('/\.[^.]+$/', '.avif', $size_file);
-                            ThumbnailGenerator::generateAVIF(
+                            $avif_result = ThumbnailGenerator::generateAVIF(
                                 $imagick,
                                 $avif_file,
                                 $width,
@@ -125,6 +147,17 @@ class UploadHooks {
                                 $crop,
                                 $avif_quality
                             );
+                            if ($avif_result && is_array($avif_result)) {
+                                // If actual dimensions differ, rename file
+                                if (isset($avif_result['actual_width']) && isset($avif_result['actual_height'])) {
+                                    $actual_w = $avif_result['actual_width'];
+                                    $actual_h = $avif_result['actual_height'];
+                                    if ($actual_w !== $width || $actual_h !== $height) {
+                                        $avif_new = dirname($avif_file) . '/' . pathinfo($avif_file, PATHINFO_FILENAME) . '-' . $actual_w . 'x' . $actual_h . '.avif';
+                                        rename($avif_file, $avif_new);
+                                    }
+                                }
+                            }
                         }
                         
                         // Delete original if not keeping it

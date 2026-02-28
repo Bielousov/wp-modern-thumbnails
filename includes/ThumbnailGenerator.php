@@ -21,7 +21,7 @@ class ThumbnailGenerator {
      * @param bool $crop Whether to crop image
      * @param string $format Image format (webp, avif, etc.)
      * @param int $quality Image quality (0-100), defaults to 80
-     * @return bool
+     * @return array|bool Array with actual_width and actual_height on success, false on failure
      */
     public static function generateThumbnail($source, $dest_path, $width, $height, $crop, $format, $quality = 80) {
         try {
@@ -74,6 +74,10 @@ class ThumbnailGenerator {
             // Resize to target dimensions
             $imagick->resizeImage($width, $height, \Imagick::FILTER_LANCZOS, 1, !$crop);
             
+            // Get actual dimensions after resize
+            $actual_width = $imagick->getImageWidth();
+            $actual_height = $imagick->getImageHeight();
+            
             // Set format and quality
             $imagick->setImageFormat(strtolower($format));
             $imagick->setImageCompressionQuality($quality);
@@ -88,12 +92,19 @@ class ThumbnailGenerator {
             $result = $imagick->writeImage($dest_path);
             $imagick->destroy();
             
+            if (!$result) {
+                return false;
+            }
+            
             // Preserve source file permissions on the generated thumbnail
-            if ($result && $source_path && file_exists($source_path) && file_exists($dest_path)) {
+            if ($source_path && file_exists($source_path) && file_exists($dest_path)) {
                 self::applySourcePermissions($source_path, $dest_path);
             }
             
-            return $result;
+            return [
+                'actual_width' => $actual_width,
+                'actual_height' => $actual_height,
+            ];
         } catch (\Exception $e) {
             return false;
         }
@@ -128,7 +139,7 @@ class ThumbnailGenerator {
      * @param int $height
      * @param bool $crop
      * @param int $quality Image quality (0-100), defaults to 80
-     * @return bool
+     * @return array|bool Array with actual_width and actual_height on success, false on failure
      */
     public static function generateWebP($source_path, $dest_path, $width, $height, $crop, $quality = 80) {
         return self::generateThumbnail($source_path, $dest_path, $width, $height, $crop, 'webp', $quality);
@@ -143,7 +154,7 @@ class ThumbnailGenerator {
      * @param int $height
      * @param bool $crop
      * @param int $quality Image quality (0-100), defaults to 75
-     * @return bool
+     * @return array|bool Array with actual_width and actual_height on success, false on failure
      */
     public static function generateAVIF($source_path, $dest_path, $width, $height, $crop, $quality = 75) {
         return self::generateThumbnail($source_path, $dest_path, $width, $height, $crop, 'avif', $quality);

@@ -21,7 +21,7 @@ class RegenerationManager {
      * @return int Number of thumbnails regenerated
      */
     public static function regenerateSize($size_name = null) {
-        $image_sizes = ImageSizeManager::getAllImageSizes();
+        $image_sizes = wp_get_registered_image_subsizes();
         
         // Get all attachments
         $attachments = get_posts([

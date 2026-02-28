@@ -30,7 +30,7 @@ class SettingsPage {
             wp_die(esc_html__('You do not have permissions to access this page.', 'modern-thumbnails'));
         }
         
-        $image_sizes = ImageSizeManager::getAllImageSizes();
+        $image_sizes = wp_get_registered_image_subsizes();
         $imagick_available = SystemCheck::isImagickAvailable();
         $webp_supported = SystemCheck::isWebPSupported();
         $avif_supported = SystemCheck::isAVIFSupported();

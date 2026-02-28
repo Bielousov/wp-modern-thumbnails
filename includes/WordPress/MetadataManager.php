@@ -258,12 +258,25 @@ class MetadataManager {
                         
                         if ($width && $height) {
                             // Use original source file to generate WebP thumbnail
-                            \ModernMediaThumbnails\ThumbnailGenerator::generateWebP(
+                            $result = \ModernMediaThumbnails\ThumbnailGenerator::generateWebP(
                                 $attachment_file,
                                 $size_webp,
                                 $width, $height, false,
                                 $webp_quality
                             );
+                            
+                            // If actual dimensions differ, rename file
+                            if ($result && is_array($result)) {
+                                if (isset($result['actual_width']) && isset($result['actual_height'])) {
+                                    $actual_w = $result['actual_width'];
+                                    $actual_h = $result['actual_height'];
+                                    if ($actual_w !== $width || $actual_h !== $height) {
+                                        $size_webp_new = dirname($size_webp) . '/' . pathinfo($size_webp, PATHINFO_FILENAME) . '-' . $actual_w . 'x' . $actual_h . '.webp';
+                                        rename($size_webp, $size_webp_new);
+                                        $size_webp = $size_webp_new;
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -277,24 +290,15 @@ class MetadataManager {
     }
     
     /**
-     * Action hook: Save updated metadata with WebP references to database
+     * Note: The wp_update_attachment_metadata action hook is no longer used.
+     * WebP references are now added to metadata in Ajax.php BEFORE calling
+     * wp_update_attachment_metadata(), ensuring proper database persistence.
      * 
-     * Called by wp_update_attachment_metadata action after metadata has been updated.
-     * Ensures WebP references are persisted to database.
-     * 
-     * @param int $attachment_id Attachment ID
-     * @param array $metadata Attachment metadata
-     * @return void
+     * This action hook fires AFTER metadata is saved to database and cannot
+     * reliably modify what gets persisted, so we handle it upstream instead.
      */
-    public static function onMetadataUpdate($attachment_id, $metadata) {
-        // Check if this metadata needs WebP file references
-        $updated_metadata = self::updateMetadataWithWebP($attachment_id, $metadata);
-        
-        // If metadata was actually updated (WebP files found and linked), save it
-        if ($updated_metadata !== $metadata) {
-            // Update in database
-            update_post_meta($attachment_id, '_wp_attachment_metadata', $updated_metadata);
-        }
+    public static function onMetadataUpdate($metadata, $attachment_id) {
+        // Hook is no longer needed - WebP processing happens in Ajax.php before save
     }
     
     /**

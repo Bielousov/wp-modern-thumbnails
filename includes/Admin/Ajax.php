@@ -140,12 +140,15 @@ class Ajax {
     /**
      * Regenerate a specific size for a single attachment
      * 
+     * Updates attachment metadata with actual dimensions and filenames
+     * 
      * @param int $attachment_id
      * @param string|null $size_name
-     * @return int Number of formats generated
+     * @return int Number of sizes regenerated
      */
     private static function regenerateAttachmentSize($attachment_id, $size_name = null) {
         $regenerated = 0;
+        error_log('Modern Thumbnails: regenerateAttachmentSize called for attachment ' . $attachment_id . ', size_name: ' . ($size_name ?? 'ALL'));
         
         try {
             $attachment = get_post($attachment_id);
@@ -170,58 +173,201 @@ class Ajax {
                 }
             }
             
-            $image_sizes = \ModernMediaThumbnails\ImageSizeManager::getAllImageSizes();
+            // Ensure sizes array exists
+            if (!isset($metadata['sizes'])) {
+                $metadata['sizes'] = [];
+            }
+            
+            // Use WordPress's native function to get correct registered dimensions
+            $registered_sizes = wp_get_registered_image_subsizes();
+            $attachment_dir = dirname($file);
             
             if ($size_name) {
                 // Regenerate specific size only
-                if (!isset($image_sizes[$size_name])) {
+                if (!isset($registered_sizes[$size_name])) {
                     return 0;
                 }
                 
-                // Get width/height first to generate proper filename
-                $width = isset($image_sizes[$size_name]['width']) ? $image_sizes[$size_name]['width'] : 0;
-                $height = isset($image_sizes[$size_name]['height']) ? $image_sizes[$size_name]['height'] : 0;
+                // Get width/height from WordPress registered sizes
+                $width = $registered_sizes[$size_name]['width'] ?? 0;
+                $height = $registered_sizes[$size_name]['height'] ?? 0;
+                $crop = $registered_sizes[$size_name]['crop'] ?? false;
                 
-                // Generate size filename using dimensions
+                // Generate size filename using registered dimensions (will be renamed with actual dims)
                 $ext = pathinfo($file, PATHINFO_EXTENSION);
                 $size_file = dirname($file) . '/' . pathinfo($file, PATHINFO_FILENAME) . '-' . $width . 'x' . $height . '.' . $ext;
-                $crop = isset($image_sizes[$size_name]['crop']) ? $image_sizes[$size_name]['crop'] : false;
                 
-                $regenerated = self::generateFormatsForSize($file, $size_file, $width, $height, $crop, $attachment->post_mime_type);
-            } else {
-                // Regenerate all sizes
-                if (!empty($metadata['sizes'])) {
-                    // Regenerate from existing metadata sizes
-                    foreach ($metadata['sizes'] as $sz_name => $size_data) {
-                        if (!isset($image_sizes[$sz_name])) {
-                            continue;
+                $actual_dims = self::generateFormatsForSize($file, $size_file, $width, $height, $crop, $attachment->post_mime_type);
+                if ($actual_dims && is_array($actual_dims)) {
+                    $regenerated = 1;
+                    
+                    // Scan directory to find any generated file for this size
+                    $found_file = null;
+                    $found_width = null;
+                    $found_height = null;
+                    
+                    if (is_dir($attachment_dir)) {
+                        $files = @scandir($attachment_dir);
+                        if ($files && is_array($files)) {
+                            $base_filename = pathinfo($file, PATHINFO_FILENAME);
+                            error_log('Modern Thumbnails: Scanning for size ' . $size_name . ' (registered: ' . $width . 'x' . $height . ')');
+                            
+                            foreach ($files as $fname) {
+                                // Match files like: basename-NxM.format (e.g., image-960x636.jpg)
+                                if (preg_match('/' . preg_quote($base_filename) . '-(\d+)x(\d+)\.[a-z]+$/i', $fname, $matches)) {
+                                    $fname_width = intval($matches[1]);
+                                    $fname_height = intval($matches[2]);
+                                    
+                                    // For specific size request, be strict - look for the size we just generated
+                                    // It should match the registered dimensions or be close to them
+                                    $is_right_size = false;
+                                    
+                                    // Exact match on registered dimensions
+                                    if ($fname_width === $width && $fname_height === $height) {
+                                        $is_right_size = true;
+                                        error_log('Modern Thumbnails:   Found exact match: ' . $fname);
+                                    }
+                                    // Or if width matches (height may differ due to aspect ratio)
+                                    else if ($fname_width === $width) {
+                                        $is_right_size = true;
+                                        error_log('Modern Thumbnails:   Found width match: ' . $fname . ' (' . $fname_width . 'x' . $fname_height . ')');
+                                    }
+                                    
+                                    if ($is_right_size) {
+                                        // Prefer WebP, then other formats
+                                        if (strtolower(pathinfo($fname, PATHINFO_EXTENSION)) === 'webp' || !$found_file) {
+                                            $found_file = $fname;
+                                            $found_width = $fname_width;
+                                            $found_height = $fname_height;
+                                            
+                                            // Stop if we found WebP
+                                            if (strtolower(pathinfo($fname, PATHINFO_EXTENSION)) === 'webp') {
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
-                        
-                        $width = isset($image_sizes[$sz_name]['width']) ? $image_sizes[$sz_name]['width'] : 0;
-                        $height = isset($image_sizes[$sz_name]['height']) ? $image_sizes[$sz_name]['height'] : 0;
-                        
-                        // Generate size filename using dimensions
-                        $ext = pathinfo($file, PATHINFO_EXTENSION);
-                        $size_file = dirname($file) . '/' . pathinfo($file, PATHINFO_FILENAME) . '-' . $width . 'x' . $height . '.' . $ext;
-                        $crop = isset($image_sizes[$sz_name]['crop']) ? $image_sizes[$sz_name]['crop'] : false;
-                        
-                        $regenerated += self::generateFormatsForSize($file, $size_file, $width, $height, $crop, $attachment->post_mime_type);
                     }
-                } else {
-                    // No metadata sizes - generate from all registered sizes
-                    foreach ($image_sizes as $sz_name => $size_info) {
-                        $width = isset($size_info['width']) ? $size_info['width'] : 0;
-                        $height = isset($size_info['height']) ? $size_info['height'] : 0;
-                        $ext = pathinfo($file, PATHINFO_EXTENSION);
-                        $size_file = dirname($file) . '/' . pathinfo($file, PATHINFO_FILENAME) . '-' . $width . 'x' . $height . '.' . $ext;
-                        $crop = isset($size_info['crop']) ? $size_info['crop'] : false;
+                    
+                    // Only update metadata if we found the file
+                    if ($found_file && $found_width && $found_height) {
+                        error_log('Modern Thumbnails: Adding to metadata for specific size ' . $size_name . ': ' . $found_file . ' (' . $found_width . 'x' . $found_height . ')');
+                        $metadata['sizes'][$size_name] = [
+                            'file' => $found_file,
+                            'width' => $found_width,
+                            'height' => $found_height,
+                        ];
                         
-                        $regenerated += self::generateFormatsForSize($file, $size_file, $width, $height, $crop, $attachment->post_mime_type);
+                        // Update metadata with WebP references if available
+                        $metadata = MetadataManager::updateMetadataWithWebP($attachment_id, $metadata);
+                        
+                        // Save metadata to database
+                        $save_result = wp_update_attachment_metadata($attachment_id, $metadata);
+                        error_log('Modern Thumbnails: Specific size metadata saved, result: ' . var_export($save_result, true));
+                    } else {
+                        error_log('Modern Thumbnails: No file found for specific size ' . $size_name);
                     }
                 }
+            } else {
+                // Regenerate all sizes from WordPress registered sizes
+                foreach ($registered_sizes as $sz_name => $size_info) {
+                    $width = $size_info['width'] ?? 0;
+                    $height = $size_info['height'] ?? 0;
+                    $crop = $size_info['crop'] ?? false;
+                    
+                    if ($width && $height) {
+                        // Generate size filename using registered dimensions (will be renamed with actual dims)
+                        $ext = pathinfo($file, PATHINFO_EXTENSION);
+                        $size_file = dirname($file) . '/' . pathinfo($file, PATHINFO_FILENAME) . '-' . $width . 'x' . $height . '.' . $ext;
+                        
+                        $actual_dims = self::generateFormatsForSize($file, $size_file, $width, $height, $crop, $attachment->post_mime_type);
+                        if ($actual_dims && is_array($actual_dims)) {
+                            $regenerated++;
+                            
+                            // Scan directory to find any generated file for this size
+                            $found_file = null;
+                            $found_width = null;
+                            $found_height = null;
+                            
+                            if (is_dir($attachment_dir)) {
+                                $files = @scandir($attachment_dir);
+                                if ($files && is_array($files)) {
+                                    $base_filename = pathinfo($file, PATHINFO_FILENAME);
+                                    error_log('Modern Thumbnails: Scanning for size ' . $sz_name . ' (registered: ' . $width . 'x' . $height . ') in ' . $attachment_dir);
+                                    
+                                    // Look for files matching the registered dimensions first
+                                    // Pattern: basename-registeredW x registeredH.format OR basename-actualW x actualH.format
+                                    foreach ($files as $fname) {
+                                        // Match files like: basename-NxM.format (e.g., image-960x636.jpg)
+                                        if (preg_match('/' . preg_quote($base_filename) . '-(\d+)x(\d+)\.[a-z]+$/i', $fname, $matches)) {
+                                            $fname_width = intval($matches[1]);
+                                            $fname_height = intval($matches[2]);
+                                            
+                                            // Check if this file is for the current size we're looking for
+                                            // It matches if: (1) it has the registered dimensions, (2) width matches and is portrait/square aspect
+                                            // This helps us avoid picking the wrong size file
+                                            $is_for_this_size = false;
+                                            
+                                            // Exact match on registered dimensions
+                                            if ($fname_width === $width && $fname_height === $height) {
+                                                $is_for_this_size = true;
+                                                error_log('Modern Thumbnails:   Exact match: ' . $fname);
+                                            }
+                                            // Or aspect ratio match (within tolerance) with width matching
+                                            else if ($fname_width === $width) {
+                                                // If width matches exactly, this is likely the right file
+                                                $is_for_this_size = true;
+                                                error_log('Modern Thumbnails:   Width match: ' . $fname);
+                                            }
+                                            
+                                            if ($is_for_this_size) {
+                                                // Prefer WebP, then other formats
+                                                if (strtolower(pathinfo($fname, PATHINFO_EXTENSION)) === 'webp' || !$found_file) {
+                                                    $found_file = $fname;
+                                                    $found_width = $fname_width;
+                                                    $found_height = $fname_height;
+                                                    
+                                                    // Stop if we found WebP
+                                                    if (strtolower(pathinfo($fname, PATHINFO_EXTENSION)) === 'webp') {
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Only update metadata if we found the file
+                            if ($found_file && $found_width && $found_height) {
+                                error_log('Modern Thumbnails: Adding to metadata[sizes][' . $sz_name . ']: ' . $found_file . ' (' . $found_width . 'x' . $found_height . ')');
+                                $metadata['sizes'][$sz_name] = [
+                                    'file' => $found_file,
+                                    'width' => $found_width,
+                                    'height' => $found_height,
+                                ];
+                            } else {
+                                error_log('Modern Thumbnails: No file found for size ' . $sz_name . ' (registered: ' . $width . 'x' . $height . ')');
+                            }
+                        }
+                    }
+                }
+                
+                // After processing all sizes, save metadata
+                if (!empty($metadata['sizes'])) {
+                    // Add WebP references to metadata BEFORE saving
+                    $metadata = MetadataManager::updateMetadataWithWebP($attachment_id, $metadata);
+                    
+                    // Save metadata using update_post_meta which is more reliable than wp_update_attachment_metadata
+                    update_post_meta($attachment_id, '_wp_attachment_metadata', $metadata);
+                }
+                
+                $regenerated++;
             }
         } catch (\Exception $e) {
-            // Silently handle error 
+            error_log('Modern Thumbnails regenerateAttachmentSize error: ' . $e->getMessage());
         }
         
         return $regenerated;
@@ -230,19 +376,19 @@ class Ajax {
     /**
      * Generate formats for a specific size based on user settings
      * 
+     * Returns array with actual dimensions used for generated files.
+     * 
      * @param string $source_file
      * @param string $size_file
      * @param int $width
      * @param int $height
      * @param bool $crop
      * @param string $original_mime_type
-     * @return int
+     * @return array|false Actual dimensions ['width' => int, 'height' => int] or false on failure
      */
     private static function generateFormatsForSize($source_file, $size_file, $width, $height, $crop, $original_mime_type = 'image/jpeg') {
-        $count = 0;
-        
         if (!$width || !$height) {
-            return 0;
+            return false;
         }
         
         // Get user settings
@@ -270,34 +416,104 @@ class Ajax {
         
         // Handle GIF files specially - if convert_gif is disabled, only create GIF
         if ($original_mime_type === 'image/gif' && !$convert_gif) {
-            // For GIFs when not converting, just keep the original GIF thumbnail
-            // Don't generate WebP or AVIF versions
-            return 0; // No new formats generated, original GIF already exists
+            error_log('Modern Thumbnails: Skipping GIF conversion for ' . basename($size_file) . ' (convert_gif disabled)');
+            return false; 
         }
+        
+        $actual_width = null;
+        $actual_height = null;
+        
+        // Get the base filename without extension from source
+        $base_filename = pathinfo($source_file, PATHINFO_FILENAME);
+        $attachment_dir = dirname($source_file);
         
         // Always generate WebP (unless it's a GIF and we're not converting)
         $webp_file = $size_base . '.webp';
-        if (\ModernMediaThumbnails\ThumbnailGenerator::generateWebP($source_file, $webp_file, $width, $height, $crop, $webp_quality)) {
-            $count++;
+        $webp_result = \ModernMediaThumbnails\ThumbnailGenerator::generateWebP($source_file, $webp_file, $width, $height, $crop, $webp_quality);
+        
+        if ($webp_result && is_array($webp_result)) {
+            error_log('Modern Thumbnails: Generated WebP ' . basename($webp_file) . ' - actual: ' . $webp_result['actual_width'] . 'x' . $webp_result['actual_height']);
+            // Get actual dimensions from generated WebP
+            if ($actual_width === null) {
+                $actual_width = $webp_result['actual_width'];
+                $actual_height = $webp_result['actual_height'];
+            }
+            
+            // Always rename to use only actual dimensions (not registered dimensions)
+            $webp_new = $attachment_dir . '/' . $base_filename . '-' . $actual_width . 'x' . $actual_height . '.webp';
+            if ($webp_file !== $webp_new) {
+                error_log('Modern Thumbnails: Renaming ' . basename($webp_file) . ' to ' . basename($webp_new));
+                if (file_exists($webp_file)) {
+                    rename($webp_file, $webp_new);
+                }
+            }
+        } else {
+            error_log('Modern Thumbnails: Failed to generate WebP ' . basename($webp_file) . ' (result: ' . var_export($webp_result, true) . ')');
         }
         
         // Keep original format if enabled
         if ($keep_original) {
             $original_file = $size_base . '.' . $original_format;
-            if (\ModernMediaThumbnails\ThumbnailGenerator::generateThumbnail($source_file, $original_file, $width, $height, $crop, $original_format, $original_quality)) {
-                $count++;
+            $original_result = \ModernMediaThumbnails\ThumbnailGenerator::generateThumbnail($source_file, $original_file, $width, $height, $crop, $original_format, $original_quality);
+            
+            if ($original_result && is_array($original_result)) {
+                error_log('Modern Thumbnails: Generated ' . $original_format . ' ' . basename($original_file) . ' - actual: ' . $original_result['actual_width'] . 'x' . $original_result['actual_height']);
+                // Get actual dimensions from generated file
+                if ($actual_width === null) {
+                    $actual_width = $original_result['actual_width'];
+                    $actual_height = $original_result['actual_height'];
+                }
+                
+                // Always rename to use only actual dimensions (not registered dimensions)
+                $original_new = $attachment_dir . '/' . $base_filename . '-' . $actual_width . 'x' . $actual_height . '.' . $original_format;
+                if ($original_file !== $original_new) {
+                    error_log('Modern Thumbnails: Renaming ' . basename($original_file) . ' to ' . basename($original_new));
+                    if (file_exists($original_file)) {
+                        rename($original_file, $original_new);
+                    }
+                }
+            } else {
+                error_log('Modern Thumbnails: Failed to generate ' . $original_format . ' ' . basename($original_file));
             }
         }
         
         // Generate AVIF if enabled
         if ($generate_avif) {
             $avif_file = $size_base . '.avif';
-            if (\ModernMediaThumbnails\ThumbnailGenerator::generateAVIF($source_file, $avif_file, $width, $height, $crop, $avif_quality)) {
-                $count++;
+            $avif_result = \ModernMediaThumbnails\ThumbnailGenerator::generateAVIF($source_file, $avif_file, $width, $height, $crop, $avif_quality);
+            
+            if ($avif_result && is_array($avif_result)) {
+                error_log('Modern Thumbnails: Generated AVIF ' . basename($avif_file) . ' - actual: ' . $avif_result['actual_width'] . 'x' . $avif_result['actual_height']);
+                // Get actual dimensions from generated file
+                if ($actual_width === null) {
+                    $actual_width = $avif_result['actual_width'];
+                    $actual_height = $avif_result['actual_height'];
+                }
+                
+                // Always rename to use only actual dimensions (not registered dimensions)
+                $avif_new = $attachment_dir . '/' . $base_filename . '-' . $actual_width . 'x' . $actual_height . '.avif';
+                if ($avif_file !== $avif_new) {
+                    error_log('Modern Thumbnails: Renaming ' . basename($avif_file) . ' to ' . basename($avif_new));
+                    if (file_exists($avif_file)) {
+                        rename($avif_file, $avif_new);
+                    }
+                }
+            } else {
+                error_log('Modern Thumbnails: Failed to generate AVIF ' . basename($avif_file));
             }
         }
         
-        return $count;
+        // Return actual dimensions used
+        if ($actual_width !== null && $actual_height !== null) {
+            error_log('Modern Thumbnails: generateFormatsForSize returning success - actual: ' . $actual_width . 'x' . $actual_height);
+            return [
+                'width' => $actual_width,
+                'height' => $actual_height,
+            ];
+        }
+        
+        error_log('Modern Thumbnails: generateFormatsForSize returning false - no actual dimensions set');
+        return false;
     }
     
     /**
@@ -631,10 +847,7 @@ class Ajax {
             wp_send_json_error('No attachment ID specified');
         }
         
-        $regenerated = 0;
-        
         try {
-            // Regenerate thumbnails for this single attachment
             $attachment = get_post($attachment_id);
             
             if (!$attachment || !in_array($attachment->post_mime_type, ['image/jpeg', 'image/png', 'image/gif', 'image/webp'])) {
@@ -643,255 +856,95 @@ class Ajax {
                     'regenerated' => 0,
                     'message' => 'Skipped (not an image)',
                 ]);
+                return;
             }
             
             $file = get_attached_file($attachment_id);
-
-            // Diagnostics list to return paths we checked and whether they existed
-            $diagnostics = [];
-            $upload_dir = wp_upload_dir();
-
-            if ($file) {
-                $diagnostics[] = ['path' => $file, 'exists' => file_exists($file)];
-            } else {
-                $diagnostics[] = ['path' => null, 'exists' => false];
-            }
-
-            // Robust fallback: if get_attached_file() points to a missing path, try metadata and common extensions.
             if (!$file || !file_exists($file)) {
+                // Fallback: try to resolve file using metadata
+                $upload_dir = wp_upload_dir();
                 $metadata = wp_get_attachment_metadata($attachment_id);
-
-                // Try metadata 'file' (may be relative path)
+                
                 if (!empty($metadata['file'])) {
                     $try = trailingslashit($upload_dir['basedir']) . ltrim($metadata['file'], '/');
-                    $diagnostics[] = ['path' => $try, 'exists' => file_exists($try)];
                     if (file_exists($try)) {
                         $file = $try;
                     }
                 }
-
-                // If still not found, try common extensions for same basename
-                if ((!$file || !file_exists($file)) && !empty($metadata['file'])) {
+                
+                // If still not found, try common extensions
+                if (!$file && !empty($metadata['file'])) {
                     $base = preg_replace('/\.[^\.]+$/', '', $metadata['file']);
-                    foreach (array('jpg', 'jpeg', 'png', 'gif', 'webp') as $ext) {
+                    foreach (['jpg', 'jpeg', 'png', 'gif', 'webp'] as $ext) {
                         $candidate = trailingslashit($upload_dir['basedir']) . $base . '.' . $ext;
-                        $diagnostics[] = ['path' => $candidate, 'exists' => file_exists($candidate)];
                         if (file_exists($candidate)) {
                             $file = $candidate;
                             break;
                         }
                     }
                 }
-
+                
                 if (!$file || !file_exists($file)) {
                     wp_send_json_success([
                         'attachment_id' => $attachment_id,
                         'regenerated' => 0,
                         'message' => 'Skipped (file not found)',
-                        'diagnostics' => $diagnostics,
                     ]);
+                    return;
                 }
             }
             
+            // Validate and repair metadata
             $metadata = wp_get_attachment_metadata($attachment_id);
-
-            // Validate and repair broken metadata (detects orphaned sizes, invalid dimensions, etc.)
             if (!empty($metadata) && is_array($metadata)) {
                 $metadata = self::validateAndRepairMetadata($attachment_id, $file, $metadata);
                 if ($metadata) {
                     wp_update_attachment_metadata($attachment_id, $metadata);
                 }
             }
-
-            // If metadata is missing or lacks sizes, attempt to generate it (covers Gutenberg/REST uploads)
-            $metadata_generated = false;
+            
+            // Attempt metadata generation if missing
             if (empty($metadata) || empty($metadata['sizes'])) {
                 try {
                     $generated = wp_generate_attachment_metadata($attachment_id, $file);
                     if (!empty($generated) && is_array($generated)) {
                         wp_update_attachment_metadata($attachment_id, $generated);
                         $metadata = $generated;
-                        $metadata_generated = true;
                     }
                 } catch (\Exception $e) {
-                    // ignore generation errors
+                    // ignore
                 }
             }
-
-            if (empty($metadata) || empty($metadata['sizes'])) {
-                // Collect diagnostics about available image editors and PHP extensions
-                $editor = wp_get_image_editor($file);
-                $editor_info = [];
-                if (is_wp_error($editor)) {
-                    $editor_info['error'] = $editor->get_error_message();
-                } else {
-                    $editor_info['class'] = is_object($editor) ? get_class($editor) : null;
-                }
-
-                $gd_info = null;
-                if (function_exists('gd_info')) {
-                    $gd_info = @gd_info();
-                }
-
-                $file_type = wp_check_filetype($file);
-                $mime_content = function_exists('mime_content_type') ? @mime_content_type($file) : null;
-
-                wp_send_json_success([
-                    'attachment_id' => $attachment_id,
-                    'regenerated' => 0,
-                    'message' => 'Skipped (no thumbnails)',
-                    'diagnostics' => [
-                        'metadata_generated' => $metadata_generated,
-                        'metadata' => $metadata,
-                        'image_editor' => $editor_info,
-                        'imagick_available' => class_exists('Imagick'),
-                        'gd_available' => function_exists('gd_info'),
-                        'gd_info' => $gd_info,
-                        'file_checktype' => $file_type,
-                        'mime_content_type' => $mime_content,
-                    ],
-                ]);
-            }
-
-            /**
-             * Fallback: when metadata generation failed, try to build thumbnails
-             * using WP_Image_Editor and persist metadata so processing can continue.
-             */
+            
+            // Final fallback if metadata generation failed
             if (empty($metadata) || empty($metadata['sizes'])) {
                 $generated_meta = self::generateMetadataWithEditor($attachment_id, $file);
                 if (!empty($generated_meta) && is_array($generated_meta) && !empty($generated_meta['metadata'])) {
                     $metadata = $generated_meta['metadata'];
                 } else {
-                    // Attach generation debug info to diagnostics for later reporting
-                    $generation_debug = is_array($generated_meta) ? ($generated_meta['debug'] ?? $generated_meta) : ['error' => 'generation_failed'];
+                    wp_send_json_success([
+                        'attachment_id' => $attachment_id,
+                        'regenerated' => 0,
+                        'message' => 'Skipped (no thumbnails)',
+                    ]);
+                    return;
                 }
             }
             
-            // Load source image once for all sizes
-            try {
-                $imagick = new \Imagick($file);
-            } catch (\Exception $e) {
-                wp_send_json_success([
-                    'attachment_id' => $attachment_id,
-                    'regenerated' => 0,
-                    'message' => 'Skipped (unable to open file)',
-                ]);
-            }
-            
-            // Process all sizes for this attachment
-            $image_sizes = \ModernMediaThumbnails\ImageSizeManager::getAllImageSizes();
-            
-            // Get quality settings
-            $all_settings = Settings::getWithDefaults();
-            $webp_quality = intval($all_settings['webp_quality']);
-            $original_quality = intval($all_settings['original_quality']);
-            $avif_quality = intval($all_settings['avif_quality']);
-            $convert_gif = FormatManager::shouldConvertGif();
-            
-            // Get source image MIME type
-            $source_mime = $attachment ? get_post_mime_type($attachment->ID) : 'image/jpeg';
-            
-            foreach ($metadata['sizes'] as $size_name => $size_data) {
-                if (!isset($image_sizes[$size_name])) {
-                    continue;
-                }
-                
-                $width = isset($image_sizes[$size_name]['width']) ? $image_sizes[$size_name]['width'] : 0;
-                $height = isset($image_sizes[$size_name]['height']) ? $image_sizes[$size_name]['height'] : 0;
-                $crop = isset($image_sizes[$size_name]['crop']) ? $image_sizes[$size_name]['crop'] : false;
-                
-                // Generate size filename using dimensions
-                $ext = pathinfo($file, PATHINFO_EXTENSION);
-                $size_file = dirname($file) . '/' . pathinfo($file, PATHINFO_FILENAME) . '-' . $width . 'x' . $height . '.' . $ext;
-                
-                if ($width && $height) {
-                    // Handle GIF files specially
-                    if ($source_mime === 'image/gif' && !$convert_gif) {
-                        // Don't generate WebP/AVIF for GIFs when not converting
-                        continue;
-                    }
-                    
-                    // Generate WebP - pass imagick object
-                    $webp_file = preg_replace('/\.[^\.]+$/', '.webp', $size_file);
-                    if (\ModernMediaThumbnails\ThumbnailGenerator::generateWebP($imagick, $webp_file, $width, $height, $crop, $webp_quality)) {
-                        $regenerated++;
-                    }
-                    
-                    // Generate original format if enabled - pass imagick object
-                    if (FormatManager::shouldKeepOriginal()) {
-                        $format_map = [
-                            'image/jpeg' => 'jpg',
-                            'image/png' => 'png',
-                            'image/gif' => 'gif',
-                            'image/webp' => 'webp',
-                        ];
-                        $original_format = $format_map[$source_mime] ?? 'jpg';
-                        $original_file = preg_replace('/\.[^\.]+$/', '.' . $original_format, $size_file);
-                        
-                        if (\ModernMediaThumbnails\ThumbnailGenerator::generateThumbnail($imagick, $original_file, $width, $height, $crop, $original_format, $original_quality)) {
-                            $regenerated++;
-                        }
-                    }
-                    
-                    // Generate AVIF if enabled - pass imagick object
-                    if (FormatManager::shouldGenerateAVIF()) {
-                        $avif_file = preg_replace('/\.[^\.]+$/', '.avif', $size_file);
-                        if (\ModernMediaThumbnails\ThumbnailGenerator::generateAVIF($imagick, $avif_file, $width, $height, $crop, $avif_quality)) {
-                            $regenerated++;
-                        }
-                    }
-                    
-                    // Delete original if not keeping it
-                    if (!FormatManager::shouldKeepOriginal()) {
-                        if (file_exists($size_file)) {
-                            wp_delete_file($size_file);
-                        }
-                    }
-                }
-            }
-            
-            // Destroy imagick object after processing all sizes
-            $imagick->destroy();
-            
-            // Update metadata to reflect new dimension-based filenames
-            foreach ($metadata['sizes'] as $size_name => $size_data) {
-                if (isset($image_sizes[$size_name])) {
-                    $width = isset($image_sizes[$size_name]['width']) ? $image_sizes[$size_name]['width'] : 0;
-                    $height = isset($image_sizes[$size_name]['height']) ? $image_sizes[$size_name]['height'] : 0;
-                    
-                    // Update with new dimension-based filename
-                    $ext = pathinfo($file, PATHINFO_EXTENSION);
-                    $new_filename = pathinfo($file, PATHINFO_FILENAME) . '-' . $width . 'x' . $height . '.' . $ext;
-                    
-                    if ($width && $height) {
-                        $metadata['sizes'][$size_name]['file'] = $new_filename;
-                        $metadata['sizes'][$size_name]['width'] = $width;
-                        $metadata['sizes'][$size_name]['height'] = $height;
-                    }
-                }
-            }
-            
-            // Update attachment metadata to include WebP file references
-            $updated_metadata = $metadata;
-            $updated_metadata = MetadataManager::updateMetadataWithWebP($attachment_id, $updated_metadata);
-            
-            // Save metadata to database
-            wp_update_attachment_metadata($attachment_id, $updated_metadata);
-            
-            $response = [
+            // Regenerate all sizes for this attachment
+            $regenerated = self::regenerateAttachmentSize($attachment_id, null);
+
+            wp_send_json_success([
                 'attachment_id' => $attachment_id,
                 'regenerated' => $regenerated,
-                'message' => 'Processed media item (generated ' . $regenerated . ' formats)',
-            ];
-
-            // Include generation debug/diagnostics if available
-            if (!empty($generation_debug)) {
-                $response['generation_debug'] = $generation_debug;
-            }
-
-            wp_send_json_success($response);
+                'message' => 'Processed media item (generated ' . $regenerated . ' sizes)',
+            ]);
         } catch (\Exception $e) {
-            wp_send_json_error('Error processing attachment ' . $attachment_id . ': ' . $e->getMessage());
+            wp_send_json_success([
+                'attachment_id' => $attachment_id,
+                'regenerated' => 0,
+                'message' => 'Error: ' . $e->getMessage(),
+            ]);
         }
     }
     
@@ -997,7 +1050,7 @@ class Ajax {
             }
             
             // Process only the specified size for this attachment
-            $image_sizes = \ModernMediaThumbnails\ImageSizeManager::getAllImageSizes();
+            $image_sizes = wp_get_registered_image_subsizes();
             
             if (!isset($metadata['sizes'][$size_name]) || !isset($image_sizes[$size_name])) {
                 wp_send_json_success([
@@ -1035,8 +1088,19 @@ class Ajax {
                 } else {
                     // Generate WebP - pass imagick object
                     $webp_file = preg_replace('/\.[^\.]+$/', '.webp', $size_file);
-                    if (\ModernMediaThumbnails\ThumbnailGenerator::generateWebP($imagick, $webp_file, $width, $height, $crop, $webp_quality)) {
+                    $webp_result = \ModernMediaThumbnails\ThumbnailGenerator::generateWebP($imagick, $webp_file, $width, $height, $crop, $webp_quality);
+                    
+                    if ($webp_result && is_array($webp_result)) {
                         $regenerated++;
+                        // If actual dimensions differ, rename file
+                        if (isset($webp_result['actual_width']) && isset($webp_result['actual_height'])) {
+                            $actual_w = $webp_result['actual_width'];
+                            $actual_h = $webp_result['actual_height'];
+                            if ($actual_w !== $width || $actual_h !== $height) {
+                                $webp_new = dirname($webp_file) . '/' . pathinfo($webp_file, PATHINFO_FILENAME) . '-' . $actual_w . 'x' . $actual_h . '.webp';
+                                rename($webp_file, $webp_new);
+                            }
+                        }
                     }
                     
                     // Generate original format if enabled - pass imagick object
@@ -1050,16 +1114,38 @@ class Ajax {
                         $original_format = $format_map[$source_mime] ?? 'jpg';
                         $original_file = preg_replace('/\.[^\.]+$/', '.' . $original_format, $size_file);
                         
-                        if (\ModernMediaThumbnails\ThumbnailGenerator::generateThumbnail($imagick, $original_file, $width, $height, $crop, $original_format, $original_quality)) {
+                        $orig_result = \ModernMediaThumbnails\ThumbnailGenerator::generateThumbnail($imagick, $original_file, $width, $height, $crop, $original_format, $original_quality);
+                        
+                        if ($orig_result && is_array($orig_result)) {
                             $regenerated++;
+                            // If actual dimensions differ, rename file
+                            if (isset($orig_result['actual_width']) && isset($orig_result['actual_height'])) {
+                                $actual_w = $orig_result['actual_width'];
+                                $actual_h = $orig_result['actual_height'];
+                                if ($actual_w !== $width || $actual_h !== $height) {
+                                    $orig_new = dirname($original_file) . '/' . pathinfo($original_file, PATHINFO_FILENAME) . '-' . $actual_w . 'x' . $actual_h . '.' . $original_format;
+                                    rename($original_file, $orig_new);
+                                }
+                            }
                         }
                     }
                     
                     // Generate AVIF if enabled - pass imagick object
                     if (FormatManager::shouldGenerateAVIF()) {
                         $avif_file = preg_replace('/\.[^\.]+$/', '.avif', $size_file);
-                        if (\ModernMediaThumbnails\ThumbnailGenerator::generateAVIF($imagick, $avif_file, $width, $height, $crop, $avif_quality)) {
+                        $avif_result = \ModernMediaThumbnails\ThumbnailGenerator::generateAVIF($imagick, $avif_file, $width, $height, $crop, $avif_quality);
+                        
+                        if ($avif_result && is_array($avif_result)) {
                             $regenerated++;
+                            // If actual dimensions differ, rename file
+                            if (isset($avif_result['actual_width']) && isset($avif_result['actual_height'])) {
+                                $actual_w = $avif_result['actual_width'];
+                                $actual_h = $avif_result['actual_height'];
+                                if ($actual_w !== $width || $actual_h !== $height) {
+                                    $avif_new = dirname($avif_file) . '/' . pathinfo($avif_file, PATHINFO_FILENAME) . '-' . $actual_w . 'x' . $actual_h . '.avif';
+                                    rename($avif_file, $avif_new);
+                                }
+                            }
                         }
                     }
                     
@@ -1324,7 +1410,7 @@ class Ajax {
             // Bypass Modern Thumbnails filters: restore metadata to reference original filenames
             // Do NOT attempt to regenerate using GD here — simply remove modern format files and
             // update metadata so WordPress will use the original thumbnails (if present).
-            $image_sizes = \ModernMediaThumbnails\ImageSizeManager::getAllImageSizes();
+            $image_sizes = wp_get_registered_image_subsizes();
 
             $attachment_dir = dirname($file);
             $orig_ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
@@ -1446,19 +1532,29 @@ class Ajax {
         }
         
         try {
-            // Get metadata to count sizes
-            $metadata = wp_get_attachment_metadata($post_id);
-            $size_count = !empty($metadata['sizes']) ? count($metadata['sizes']) : 0;
-            
             // Regenerate all sizes for this attachment
+            // This also updates and saves metadata with actual dimensions
             $regenerated = self::regenerateAttachmentSize($post_id, null);
             
-            // Update attachment metadata to include WebP file references
+            // Get the metadata that was already saved by regenerateAttachmentSize
             $updated_metadata = wp_get_attachment_metadata($post_id);
-            $updated_metadata = MetadataManager::updateMetadataWithWebP($post_id, $updated_metadata);
             
-            // Save metadata to database
-            wp_update_attachment_metadata($post_id, $updated_metadata);
+            // wp_get_attachment_metadata returns false if metadata doesn't exist, or array if it does
+            if ($updated_metadata === false) {
+                error_log('Modern Thumbnails: Failed to get metadata for post ' . $post_id);
+                wp_send_json_error('Failed to retrieve attachment metadata');
+                return;
+            }
+            
+            // If no metadata array, something went wrong
+            if (!is_array($updated_metadata)) {
+                error_log('Modern Thumbnails: Metadata is not an array for post ' . $post_id);
+                wp_send_json_error('Invalid metadata format');
+                return;
+            }
+            
+            // If no sizes were found, still proceed but with count of 0
+            $size_count = isset($updated_metadata['sizes']) && is_array($updated_metadata['sizes']) ? count($updated_metadata['sizes']) : 0;
             
             // Build format list based on enabled options
             $enabled_formats = [];
@@ -1504,18 +1600,19 @@ class Ajax {
                 $message = 'Attachment processed';
             }
             
-            // Get updated metadata to send back the new thumbnail URLs
-            $final_metadata = wp_get_attachment_metadata($post_id);
+            // Get attachment info for building thumbnail URLs
             $attachment_url_base = dirname(wp_get_attachment_url($post_id));
             $attachment_file = get_attached_file($post_id);
             $attachment_dir = dirname($attachment_file);
             
             // Build thumbnail URLs with cache busting, preferring WebP files
             $thumbnails = [];
+            $thumbnail_url = null; // For admin media library display
             $cache_buster = gmdate('Ymdhis');
-            if (!empty($final_metadata['sizes'])) {
-                foreach ($final_metadata['sizes'] as $size_name => $size_data) {
-                    if (!empty($size_data['file'])) {
+            
+            if ($updated_metadata && isset($updated_metadata['sizes']) && !empty($updated_metadata['sizes'])) {
+                foreach ($updated_metadata['sizes'] as $size_name => $size_data) {
+                    if (!empty($size_data) && is_array($size_data) && !empty($size_data['file'])) {
                         // Check if WebP version exists for this size
                         $size_file = $attachment_dir . '/' . $size_data['file'];
                         $size_base = preg_replace('/\.[^\.]+$/', '', $size_file);
@@ -1529,10 +1626,20 @@ class Ajax {
                         }
                         
                         // Add cache buster to ensure fresh fetch
-                        $thumbnails[$size_name] = $url . '?v=' . $cache_buster;
+                        $url_with_cache = $url . '?v=' . $cache_buster;
+                        $thumbnails[$size_name] = $url_with_cache;
+                        
+                        // Use thumbnail size for admin media library display
+                        // If not available, use the first available size
+                        if ($size_name === 'thumbnail' || !$thumbnail_url) {
+                            $thumbnail_url = $url_with_cache;
+                        }
                     }
                 }
             }
+            
+            // Also fetch full attachment data for WordPress admin media library refresh
+            $attachment = wp_prepare_attachment_for_js($post_id);
             
             wp_send_json_success([
                 'message' => $message,
@@ -1540,7 +1647,9 @@ class Ajax {
                 'count' => $regenerated,
                 'sizes' => $size_count,
                 'formats' => $enabled_formats,
-                'thumbnails' => $thumbnails
+                'thumbnails' => $thumbnails,
+                'thumbnail_url' => $thumbnail_url,
+                'attachment' => $attachment // Full attachment data for admin refresh
             ]);
         } catch (\Exception $e) {
             wp_send_json_error('Error regenerating attachment');
@@ -1567,7 +1676,7 @@ class Ajax {
         }
 
         $attachment_dir = dirname($file);
-        $image_sizes = \ModernMediaThumbnails\ImageSizeManager::getAllImageSizes();
+        $image_sizes = wp_get_registered_image_subsizes();
         $repaired = false;
 
         // Fix invalid main image dimensions
@@ -1674,7 +1783,7 @@ class Ajax {
                 return ['metadata' => false, 'debug' => $debug];
             }
 
-            $image_sizes = \ModernMediaThumbnails\ImageSizeManager::getAllImageSizes();
+            $image_sizes = wp_get_registered_image_subsizes();
 
             // Get source dimensions
             $size = @getimagesize($file);
