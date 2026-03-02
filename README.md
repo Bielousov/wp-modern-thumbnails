@@ -4,7 +4,7 @@ License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable Tag: 0.1.1
+Stable Tag: 0.1.2
 Plugin URI: https://logovo.ca/wordpress-modern-thumbnails-plugin/
 
 Generate modern image formats (WebP, AVIF) for WordPress thumbnails with ImageMagick.

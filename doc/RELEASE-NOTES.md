@@ -1,12 +1,12 @@
 # Modern Thumbnails - Release Notes
 
-## Version 0.1.1
+## Version 0.1.2
 
 **Release Date:** March 1, 2026
 
 ### Highlights
 
-- Fixed nonce validation errors (403 Forbidden) in consolidated mmt_regenerate_single endpoint
+- Fixed PHPCS WordPress coding standards violations
 - Unified nonce validation across all regeneration entry points (bulk actions, media modal, media details, queue processor, settings page)
 - Updated mmt_regenerate_single response to include absolute media file path for progress display
 - Enhanced progress indicators to show last processed filename on all operations (bulk actions, media modal, media details, queue processor)
