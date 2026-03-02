@@ -25,7 +25,7 @@ class Ajax {
      * @return void
      */
     public static function regenerateAll() {
-        mmt_check_ajax_permissions('mmt_regenerate_nonce', 'nonce');
+        mmt_check_ajax_permissions('mmt_regenerate_nonce', 'nonce', 'edit_posts');
         
         $regenerated = RegenerationManager::regenerateSize();
         
@@ -38,96 +38,6 @@ class Ajax {
         ]);
     }
     
-    /**
-     * Handle AJAX regeneration of a specific size
-     * 
-     * @return void
-     */
-    public static function regenerateSize() {
-        mmt_check_ajax_permissions('mmt_regenerate_nonce', 'nonce');
-        
-        $size_name = isset($_POST['size']) ? sanitize_text_field(wp_unslash($_POST['size'])) : null;
-        $attachment_id = isset($_POST['attachment_id']) ? intval($_POST['attachment_id']) : 0;
-        
-        // If attachment_id is provided, regenerate only that specific attachment
-        if ($attachment_id) {
-            $file_path = get_attached_file($attachment_id);
-            $generation_debug = null;
-
-            // Attempt metadata generation if missing (covers REST/Gutenberg uploads)
-            $metadata = wp_get_attachment_metadata($attachment_id);
-            if (empty($metadata)) {
-                $generated_meta = self::generateMetadataWithEditor($attachment_id, $file_path);
-                if (!empty($generated_meta) && is_array($generated_meta)) {
-                    if (!empty($generated_meta['metadata'])) {
-                        $metadata = $generated_meta['metadata'];
-                    }
-                    $generation_debug = $generated_meta['debug'] ?? $generated_meta;
-                }
-            }
-
-            $regenerated = self::regenerateAttachmentSize($attachment_id, $size_name);
-            
-            // Update attachment metadata to include WebP file references
-            $updated_metadata = wp_get_attachment_metadata($attachment_id);
-            $updated_metadata = MetadataManager::updateMetadataWithWebP($attachment_id, $updated_metadata);
-            
-            // Save metadata to database
-            wp_update_attachment_metadata($attachment_id, $updated_metadata);
-            
-            // Detect actual formats on disk
-            $size_to_check = $size_name ?: 'original';
-            $detected_formats = self::detectFormatsOnDisk($attachment_id, $size_to_check);
-                $response = [
-                    'message' => sprintf(
-                        'Generated %d format(s) for media #%d',
-                        $regenerated,
-                        $attachment_id
-                    ),
-                    'attachment_id' => $attachment_id,
-                    'count' => $regenerated,
-                    'file_path' => $file_path,
-                    'formats' => $detected_formats
-                ];
-
-                // If nothing was generated, include diagnostic info to help debugging
-                if ($regenerated === 0) {
-                    $attached_exists = $file_path ? file_exists($file_path) : false;
-                    $response['diagnostics'] = [
-                        'attached_file' => $file_path,
-                        'attached_file_exists' => $attached_exists,
-                        'attached_file_realpath' => $attached_exists ? @realpath($file_path) : null,
-                        'attached_file_readable' => $attached_exists ? is_readable($file_path) : false,
-                        'attached_file_perms' => $attached_exists ? substr(sprintf('%o', @fileperms($file_path)), -4) : null,
-                        'post_mime_type' => get_post_mime_type($attachment_id),
-                        'metadata' => wp_get_attachment_metadata($attachment_id),
-                        'upload_dir' => wp_upload_dir(),
-                    ];
-                    if ($generation_debug) {
-                        $response['generation_debug'] = $generation_debug;
-                    }
-                }
-
-                wp_send_json_success($response);
-        } else {
-            // Original behavior - regenerate all attachments for a size (deprecated)
-            if (!$size_name) {
-                wp_send_json_error('No size specified');
-            }
-            
-            $regenerated = RegenerationManager::regenerateSize($size_name);
-            
-            wp_send_json_success([
-                'message' => sprintf(
-                    'Successfully regenerated %d thumbnails for size "%s"',
-                    $regenerated,
-                    $size_name
-                ),
-                'count' => $regenerated,
-                'size' => $size_name
-            ]);
-        }
-    }
     
     /**
      * Regenerate a specific size for a single attachment
@@ -1445,7 +1355,7 @@ class Ajax {
                 'attachment_id' => $attachment_id,
                 'deleted' => $deleted,
                 'restored' => $restored,
-                'file_path' => $file,
+                'media_path' => $file,
                 'message' => 'Restore completed (deleted ' . $deleted . ' files, regenerated or restored ' . $restored . ' sizes)'
             ]);
         } catch (\Exception $e) {
@@ -1459,8 +1369,8 @@ class Ajax {
      * @return void
      */
     public static function regenerateSingle() {
-        // Check nonce - use correct action name
-        mmt_check_ajax_permissions('mmt_bulk_action_nonce', '_wpnonce', 'edit_posts');
+        // Check nonce - use correct action name (same as regenerateAll)
+        mmt_check_ajax_permissions('mmt_regenerate_nonce', 'nonce', 'edit_posts');
         
         $post_id = isset($_POST['post_id']) ? intval($_POST['post_id']) : 0;
         
@@ -1589,6 +1499,7 @@ class Ajax {
                 'thumbnail_url' => $thumbnail_url,
                 'image_width' => $image_width,
                 'image_height' => $image_height,
+                'media_path' => $attachment_file, // Absolute path on disk for progress display
                 'attachment' => $attachment // Full attachment data for admin refresh
             ]);
         } catch (\Exception $e) {
@@ -1935,7 +1846,6 @@ class Ajax {
      */
     public static function register() {
         add_action('wp_ajax_mmt_regenerate_all', [self::class, 'regenerateAll']);
-        add_action('wp_ajax_mmt_regenerate_size', [self::class, 'regenerateSize']);
         add_action('wp_ajax_mmt_regenerate_single', [self::class, 'regenerateSingle']);
         add_action('wp_ajax_mmt_get_attachment_id_by_url', [self::class, 'getAttachmentIdByUrl']);
         add_action('wp_ajax_mmt_save_settings', [self::class, 'saveSettings']);

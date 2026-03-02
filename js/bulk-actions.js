@@ -156,7 +156,7 @@
             const data = new FormData();
             data.append('action', 'mmt_regenerate_single');
             data.append('post_id', imageId);
-            data.append('_wpnonce', nonce);
+            data.append('nonce', nonce);
 
             fetch(ajaxUrl, {
                 method: 'POST',
@@ -340,7 +340,12 @@
                 // Update progress notice
                 const progress = document.getElementById('mmt-progress');
                 if (progress) {
-                    progress.textContent = `Processing ${processed + errors} of ${imageIds.length} image(s)... (${processed} completed, ${errors} failed)`;
+                    let progressText = `Processing ${processed + errors} of ${imageIds.length} image(s)... (${processed} completed, ${errors} failed)`;
+                    if (result.success && result.data && result.data.media_path) {
+                        const fileName = result.data.media_path.split('/').pop();
+                        progressText += `\nLast: ${fileName}`;
+                    }
+                    progress.textContent = progressText;
                 }
 
                 // Process next image

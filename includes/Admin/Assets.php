@@ -84,7 +84,7 @@ class Assets {
                 'mmtBulkActions',
                 [
                     'ajaxUrl' => admin_url('admin-ajax.php'),
-                    'nonce' => wp_create_nonce('mmt_bulk_action_nonce'),
+                    'nonce' => wp_create_nonce('mmt_regenerate_nonce'),
                 ]
             );
         }

@@ -159,13 +159,19 @@
                 url: ajaxUrl,
                 type: 'POST',
                 data: {
-                    action: 'mmt_regenerate_size',
-                    attachment_id: attachmentId,
-                    _wpnonce: nonce
+                    action: 'mmt_regenerate_single',
+                    post_id: attachmentId,
+                    nonce: nonce
                 },
                 success: function(response) {
                     if (response.success) {
-                        $status.text(response.data.message || 'Done!')
+                        let statusMessage = response.data.message || 'Done!';
+                        // Add file path if available
+                        if (response.data.media_path) {
+                            const fileName = response.data.media_path.split('/').pop();
+                            statusMessage += '\nFile: ' + fileName;
+                        }
+                        $status.text(statusMessage)
                             .removeClass('mmt-error mmt-processing')
                             .addClass('mmt-success')
                             .show();

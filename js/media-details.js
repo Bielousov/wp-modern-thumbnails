@@ -52,7 +52,7 @@
             const data = new FormData();
             data.append('action', 'mmt_regenerate_single');
             data.append('post_id', postId);
-            data.append('_wpnonce', nonce);
+            data.append('nonce', nonce);
 
             fetch(ajaxUrl, {
                 method: 'POST',
@@ -72,7 +72,13 @@
                 if (result.success) {
                     // Show success message
                     if (statusDiv) {
-                        statusDiv.textContent = result.data?.message || 'Successfully regenerated thumbnail';
+                        let message = result.data?.message || 'Successfully regenerated thumbnail';
+                        // Add file path if available
+                        if (result.data?.media_path) {
+                            const fileName = result.data.media_path.split('/').pop();
+                            message += ' - ' + fileName;
+                        }
+                        statusDiv.textContent = message;
                         statusDiv.className = 'mmt-regenerate-status mmt-success';
                         statusDiv.style.display = 'inline-block';
 
