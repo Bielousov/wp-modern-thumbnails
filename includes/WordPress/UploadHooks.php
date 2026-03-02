@@ -26,6 +26,11 @@ class UploadHooks {
      * @return array
      */
     public static function onGenerateAttachmentMetadata($metadata, $attachment_id) {
+        // Initialize WP_Filesystem for file operations
+        require_once( ABSPATH . 'wp-admin/includes/file.php' );
+        WP_Filesystem();
+        global $wp_filesystem;
+        
         // Get the uploaded file
         $file = get_attached_file($attachment_id);
         if (!$file) {
@@ -98,7 +103,9 @@ class UploadHooks {
                                 $actual_h = $webp_result['actual_height'];
                                 if ($actual_w !== $width || $actual_h !== $height) {
                                     $webp_new = dirname($webp_file) . '/' . pathinfo($webp_file, PATHINFO_FILENAME) . '-' . $actual_w . 'x' . $actual_h . '.webp';
-                                    rename($webp_file, $webp_new);
+                                    if ($wp_filesystem && file_exists($webp_file)) {
+                                        $wp_filesystem->move($webp_file, $webp_new);
+                                    }
                                 }
                             }
                         }
@@ -130,7 +137,9 @@ class UploadHooks {
                                     $actual_h = $orig_result['actual_height'];
                                     if ($actual_w !== $width || $actual_h !== $height) {
                                         $orig_new = dirname($original_file) . '/' . pathinfo($original_file, PATHINFO_FILENAME) . '-' . $actual_w . 'x' . $actual_h . '.' . $original_format;
-                                        rename($original_file, $orig_new);
+                                        if ($wp_filesystem && file_exists($original_file)) {
+                                            $wp_filesystem->move($original_file, $orig_new);
+                                        }
                                     }
                                 }
                             }
@@ -154,7 +163,9 @@ class UploadHooks {
                                     $actual_h = $avif_result['actual_height'];
                                     if ($actual_w !== $width || $actual_h !== $height) {
                                         $avif_new = dirname($avif_file) . '/' . pathinfo($avif_file, PATHINFO_FILENAME) . '-' . $actual_w . 'x' . $actual_h . '.avif';
-                                        rename($avif_file, $avif_new);
+                                        if ($wp_filesystem && file_exists($avif_file)) {
+                                            $wp_filesystem->move($avif_file, $avif_new);
+                                        }
                                     }
                                 }
                             }

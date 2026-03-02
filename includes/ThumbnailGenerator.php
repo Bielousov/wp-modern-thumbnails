@@ -121,8 +121,15 @@ class ThumbnailGenerator {
         try {
             $source_perms = @fileperms($source_path);
             if ($source_perms !== false) {
-                @chmod($dest_path, $source_perms);
-                return true;
+                // Use WP_Filesystem for permission changes
+                require_once( ABSPATH . 'wp-admin/includes/file.php' );
+                WP_Filesystem();
+                global $wp_filesystem;
+                
+                if ($wp_filesystem) {
+                    $wp_filesystem->chmod($dest_path, $source_perms);
+                    return true;
+                }
             }
         } catch (\Exception $e) {
             // Silently fail - permissions are not critical

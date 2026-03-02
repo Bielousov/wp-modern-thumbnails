@@ -220,6 +220,11 @@ class MetadataManager {
      * @return array Updated metadata with WebP references
      */
     public static function interceptGeneratedMetadata($metadata, $attachment_id) {
+        // Initialize WP_Filesystem for file operations
+        require_once( ABSPATH . 'wp-admin/includes/file.php' );
+        WP_Filesystem();
+        global $wp_filesystem;
+        
         // Get attachment file
         $attachment = get_post($attachment_id);
         if (!$attachment) {
@@ -272,8 +277,10 @@ class MetadataManager {
                                     $actual_h = $result['actual_height'];
                                     if ($actual_w !== $width || $actual_h !== $height) {
                                         $size_webp_new = dirname($size_webp) . '/' . pathinfo($size_webp, PATHINFO_FILENAME) . '-' . $actual_w . 'x' . $actual_h . '.webp';
-                                        rename($size_webp, $size_webp_new);
-                                        $size_webp = $size_webp_new;
+                                        if ($wp_filesystem && file_exists($size_webp)) {
+                                            $wp_filesystem->move($size_webp, $size_webp_new);
+                                            $size_webp = $size_webp_new;
+                                        }
                                     }
                                 }
                             }

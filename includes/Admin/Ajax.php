@@ -25,7 +25,7 @@ class Ajax {
      * @return void
      */
     public static function regenerateAll() {
-        mmt_check_ajax_permissions('mmt_regenerate_nonce', 'nonce', 'edit_posts');
+        modern_thumbnails_check_ajax_permissions('mmt_regenerate_nonce', 'nonce', 'edit_posts');
         
         $regenerated = RegenerationManager::regenerateSize();
         
@@ -50,12 +50,11 @@ class Ajax {
      */
     private static function regenerateAttachmentSize($attachment_id, $size_name = null) {
         $regenerated = 0;
-        error_log('Modern Thumbnails: regenerateAttachmentSize called for attachment ' . $attachment_id . ', size_name: ' . ($size_name ?? 'ALL'));
         
         try {
             $attachment = get_post($attachment_id);
             
-            if (!mmt_is_valid_image_attachment($attachment)) {
+            if (!modern_thumbnails_is_valid_image_attachment($attachment)) {
                 return 0;
             }
             
@@ -112,7 +111,6 @@ class Ajax {
                         $files = @scandir($attachment_dir);
                         if ($files && is_array($files)) {
                             $base_filename = pathinfo($file, PATHINFO_FILENAME);
-                            error_log('Modern Thumbnails: Scanning for size ' . $size_name . ' (registered: ' . $width . 'x' . $height . ')');
                             
                             foreach ($files as $fname) {
                                 // Match files like: basename-NxM.format (e.g., image-960x636.jpg)
@@ -127,12 +125,10 @@ class Ajax {
                                     // Exact match on registered dimensions
                                     if ($fname_width === $width && $fname_height === $height) {
                                         $is_right_size = true;
-                                        error_log('Modern Thumbnails:   Found exact match: ' . $fname);
                                     }
                                     // Or if width matches (height may differ due to aspect ratio)
                                     else if ($fname_width === $width) {
                                         $is_right_size = true;
-                                        error_log('Modern Thumbnails:   Found width match: ' . $fname . ' (' . $fname_width . 'x' . $fname_height . ')');
                                     }
                                     
                                     if ($is_right_size) {
@@ -155,7 +151,6 @@ class Ajax {
                     
                     // Only update metadata if we found the file
                     if ($found_file && $found_width && $found_height) {
-                        error_log('Modern Thumbnails: Adding to metadata for specific size ' . $size_name . ': ' . $found_file . ' (' . $found_width . 'x' . $found_height . ')');
                         $metadata['sizes'][$size_name] = [
                             'file' => $found_file,
                             'width' => $found_width,
@@ -166,10 +161,7 @@ class Ajax {
                         $metadata = MetadataManager::updateMetadataWithWebP($attachment_id, $metadata);
                         
                         // Save metadata to database
-                        $save_result = wp_update_attachment_metadata($attachment_id, $metadata);
-                        error_log('Modern Thumbnails: Specific size metadata saved, result: ' . var_export($save_result, true));
-                    } else {
-                        error_log('Modern Thumbnails: No file found for specific size ' . $size_name);
+                        wp_update_attachment_metadata($attachment_id, $metadata);
                     }
                 }
             } else {
@@ -197,7 +189,6 @@ class Ajax {
                                 $files = @scandir($attachment_dir);
                                 if ($files && is_array($files)) {
                                     $base_filename = pathinfo($file, PATHINFO_FILENAME);
-                                    error_log('Modern Thumbnails: Scanning for size ' . $sz_name . ' (registered: ' . $width . 'x' . $height . ') in ' . $attachment_dir);
                                     
                                     // Look for files matching the registered dimensions first
                                     // Pattern: basename-registeredW x registeredH.format OR basename-actualW x actualH.format
@@ -215,13 +206,11 @@ class Ajax {
                                             // Exact match on registered dimensions
                                             if ($fname_width === $width && $fname_height === $height) {
                                                 $is_for_this_size = true;
-                                                error_log('Modern Thumbnails:   Exact match: ' . $fname);
                                             }
                                             // Or aspect ratio match (within tolerance) with width matching
                                             else if ($fname_width === $width) {
                                                 // If width matches exactly, this is likely the right file
                                                 $is_for_this_size = true;
-                                                error_log('Modern Thumbnails:   Width match: ' . $fname);
                                             }
                                             
                                             if ($is_for_this_size) {
@@ -244,14 +233,11 @@ class Ajax {
                             
                             // Only update metadata if we found the file
                             if ($found_file && $found_width && $found_height) {
-                                error_log('Modern Thumbnails: Adding to metadata[sizes][' . $sz_name . ']: ' . $found_file . ' (' . $found_width . 'x' . $found_height . ')');
                                 $metadata['sizes'][$sz_name] = [
                                     'file' => $found_file,
                                     'width' => $found_width,
                                     'height' => $found_height,
                                 ];
-                            } else {
-                                error_log('Modern Thumbnails: No file found for size ' . $sz_name . ' (registered: ' . $width . 'x' . $height . ')');
                             }
                         }
                     }
@@ -269,7 +255,7 @@ class Ajax {
                 $regenerated++;
             }
         } catch (\Exception $e) {
-            error_log('Modern Thumbnails regenerateAttachmentSize error: ' . $e->getMessage());
+            // Error occurred during regeneration
         }
         
         return $regenerated;
@@ -289,6 +275,11 @@ class Ajax {
      * @return array|false Actual dimensions ['width' => int, 'height' => int] or false on failure
      */
     private static function generateFormatsForSize($source_file, $size_file, $width, $height, $crop, $original_mime_type = 'image/jpeg') {
+        // Initialize WP_Filesystem for file operations
+        require_once( ABSPATH . 'wp-admin/includes/file.php' );
+        WP_Filesystem();
+        global $wp_filesystem;
+        
         if (!$width || !$height) {
             return false;
         }
@@ -303,15 +294,14 @@ class Ajax {
         $avif_quality = intval($all_settings['avif_quality']);
         
         // Map MIME type to format for original generation
-        $original_format = mmt_get_format_from_mime($original_mime_type, 'jpg');
+        $original_format = modern_thumbnails_get_format_from_mime($original_mime_type, 'jpg');
         
         // Remove existing files for this size
         $size_base = preg_replace('/\.[^\.]+$/', '', $size_file);
-        mmt_delete_image_variants($size_base);
+        modern_thumbnails_delete_image_variants($size_base);
         
         // Handle GIF files specially - if convert_gif is disabled, only create GIF
         if ($original_mime_type === 'image/gif' && !$convert_gif) {
-            error_log('Modern Thumbnails: Skipping GIF conversion for ' . basename($size_file) . ' (convert_gif disabled)');
             return false; 
         }
         
@@ -327,7 +317,6 @@ class Ajax {
         $webp_result = \ModernMediaThumbnails\ThumbnailGenerator::generateWebP($source_file, $webp_file, $width, $height, $crop, $webp_quality);
         
         if ($webp_result && is_array($webp_result)) {
-            error_log('Modern Thumbnails: Generated WebP ' . basename($webp_file) . ' - actual: ' . $webp_result['actual_width'] . 'x' . $webp_result['actual_height']);
             // Get actual dimensions from generated WebP
             if ($actual_width === null) {
                 $actual_width = $webp_result['actual_width'];
@@ -337,13 +326,12 @@ class Ajax {
             // Always rename to use only actual dimensions (not registered dimensions)
             $webp_new = $attachment_dir . '/' . $base_filename . '-' . $actual_width . 'x' . $actual_height . '.webp';
             if ($webp_file !== $webp_new) {
-                error_log('Modern Thumbnails: Renaming ' . basename($webp_file) . ' to ' . basename($webp_new));
-                if (file_exists($webp_file)) {
-                    rename($webp_file, $webp_new);
+                if (file_exists($webp_file) && $wp_filesystem) {
+                    $wp_filesystem->move($webp_file, $webp_new);
                 }
             }
         } else {
-            error_log('Modern Thumbnails: Failed to generate WebP ' . basename($webp_file) . ' (result: ' . var_export($webp_result, true) . ')');
+            // WebP generation failed
         }
         
         // Keep original format if enabled
@@ -352,7 +340,6 @@ class Ajax {
             $original_result = \ModernMediaThumbnails\ThumbnailGenerator::generateThumbnail($source_file, $original_file, $width, $height, $crop, $original_format, $original_quality);
             
             if ($original_result && is_array($original_result)) {
-                error_log('Modern Thumbnails: Generated ' . $original_format . ' ' . basename($original_file) . ' - actual: ' . $original_result['actual_width'] . 'x' . $original_result['actual_height']);
                 // Get actual dimensions from generated file
                 if ($actual_width === null) {
                     $actual_width = $original_result['actual_width'];
@@ -362,13 +349,12 @@ class Ajax {
                 // Always rename to use only actual dimensions (not registered dimensions)
                 $original_new = $attachment_dir . '/' . $base_filename . '-' . $actual_width . 'x' . $actual_height . '.' . $original_format;
                 if ($original_file !== $original_new) {
-                    error_log('Modern Thumbnails: Renaming ' . basename($original_file) . ' to ' . basename($original_new));
-                    if (file_exists($original_file)) {
-                        rename($original_file, $original_new);
+                    if (file_exists($original_file) && $wp_filesystem) {
+                        $wp_filesystem->move($original_file, $original_new);
                     }
                 }
             } else {
-                error_log('Modern Thumbnails: Failed to generate ' . $original_format . ' ' . basename($original_file));
+                // Original format generation failed
             }
         }
         
@@ -378,7 +364,6 @@ class Ajax {
             $avif_result = \ModernMediaThumbnails\ThumbnailGenerator::generateAVIF($source_file, $avif_file, $width, $height, $crop, $avif_quality);
             
             if ($avif_result && is_array($avif_result)) {
-                error_log('Modern Thumbnails: Generated AVIF ' . basename($avif_file) . ' - actual: ' . $avif_result['actual_width'] . 'x' . $avif_result['actual_height']);
                 // Get actual dimensions from generated file
                 if ($actual_width === null) {
                     $actual_width = $avif_result['actual_width'];
@@ -388,26 +373,23 @@ class Ajax {
                 // Always rename to use only actual dimensions (not registered dimensions)
                 $avif_new = $attachment_dir . '/' . $base_filename . '-' . $actual_width . 'x' . $actual_height . '.avif';
                 if ($avif_file !== $avif_new) {
-                    error_log('Modern Thumbnails: Renaming ' . basename($avif_file) . ' to ' . basename($avif_new));
-                    if (file_exists($avif_file)) {
-                        rename($avif_file, $avif_new);
+                    if (file_exists($avif_file) && $wp_filesystem) {
+                        $wp_filesystem->move($avif_file, $avif_new);
                     }
                 }
             } else {
-                error_log('Modern Thumbnails: Failed to generate AVIF ' . basename($avif_file));
+                // AVIF generation failed
             }
         }
         
         // Return actual dimensions used
         if ($actual_width !== null && $actual_height !== null) {
-            error_log('Modern Thumbnails: generateFormatsForSize returning success - actual: ' . $actual_width . 'x' . $actual_height);
             return [
                 'width' => $actual_width,
                 'height' => $actual_height,
             ];
         }
         
-        error_log('Modern Thumbnails: generateFormatsForSize returning false - no actual dimensions set');
         return false;
     }
     
@@ -713,7 +695,7 @@ class Ajax {
         try {
             $attachment = get_post($attachment_id);
             
-            if (!mmt_is_valid_image_attachment($attachment, ['image/jpeg', 'image/png', 'image/gif', 'image/webp'])) {
+            if (!modern_thumbnails_is_valid_image_attachment($attachment, ['image/jpeg', 'image/png', 'image/gif', 'image/webp'])) {
                 wp_send_json_success([
                     'attachment_id' => $attachment_id,
                     'regenerated' => 0,
@@ -871,7 +853,7 @@ class Ajax {
             // Regenerate thumbnails for this single attachment and specific size
             $attachment = get_post($attachment_id);
             
-            if (!mmt_is_valid_image_attachment($attachment, ['image/jpeg', 'image/png', 'image/gif', 'image/webp'])) {
+            if (!modern_thumbnails_is_valid_image_attachment($attachment, ['image/jpeg', 'image/png', 'image/gif', 'image/webp'])) {
                 wp_send_json_success([
                     'attachment_id' => $attachment_id,
                     'regenerated' => 0,
@@ -961,14 +943,16 @@ class Ajax {
                             $actual_h = $webp_result['actual_height'];
                             if ($actual_w !== $width || $actual_h !== $height) {
                                 $webp_new = dirname($webp_file) . '/' . pathinfo($webp_file, PATHINFO_FILENAME) . '-' . $actual_w . 'x' . $actual_h . '.webp';
-                                rename($webp_file, $webp_new);
+                                if ($wp_filesystem && file_exists($webp_file)) {
+                                    $wp_filesystem->move($webp_file, $webp_new);
+                                }
                             }
                         }
                     }
                     
                     // Generate original format if enabled - pass imagick object
                     if (FormatManager::shouldKeepOriginal()) {
-                        $original_format = mmt_get_format_from_mime($source_mime, 'jpg');
+                        $original_format = modern_thumbnails_get_format_from_mime($source_mime, 'jpg');
                         $original_file = preg_replace('/\.[^\.]+$/', '.' . $original_format, $size_file);
                         
                         $orig_result = \ModernMediaThumbnails\ThumbnailGenerator::generateThumbnail($imagick, $original_file, $width, $height, $crop, $original_format, $original_quality);
@@ -981,7 +965,9 @@ class Ajax {
                                 $actual_h = $orig_result['actual_height'];
                                 if ($actual_w !== $width || $actual_h !== $height) {
                                     $orig_new = dirname($original_file) . '/' . pathinfo($original_file, PATHINFO_FILENAME) . '-' . $actual_w . 'x' . $actual_h . '.' . $original_format;
-                                    rename($original_file, $orig_new);
+                                    if ($wp_filesystem && file_exists($original_file)) {
+                                        $wp_filesystem->move($original_file, $orig_new);
+                                    }
                                 }
                             }
                         }
@@ -1000,7 +986,9 @@ class Ajax {
                                 $actual_h = $avif_result['actual_height'];
                                 if ($actual_w !== $width || $actual_h !== $height) {
                                     $avif_new = dirname($avif_file) . '/' . pathinfo($avif_file, PATHINFO_FILENAME) . '-' . $actual_w . 'x' . $actual_h . '.avif';
-                                    rename($avif_file, $avif_new);
+                                    if ($wp_filesystem && file_exists($avif_file)) {
+                                        $wp_filesystem->move($avif_file, $avif_new);
+                                    }
                                 }
                             }
                         }
@@ -1076,6 +1064,11 @@ class Ajax {
             wp_send_json_error('Insufficient permissions');
         }
 
+        // Initialize WP_Filesystem for file operations
+        require_once( ABSPATH . 'wp-admin/includes/file.php' );
+        WP_Filesystem();
+        global $wp_filesystem;
+
         $attachment_id = isset($_POST['attachment_id']) ? intval($_POST['attachment_id']) : 0;
 
         if (!$attachment_id) {
@@ -1085,7 +1078,7 @@ class Ajax {
         try {
             $attachment = get_post($attachment_id);
 
-            if (!mmt_is_valid_image_attachment($attachment, ['image/jpeg', 'image/png', 'image/gif', 'image/webp'])) {
+            if (!modern_thumbnails_is_valid_image_attachment($attachment, ['image/jpeg', 'image/png', 'image/gif', 'image/webp'])) {
                 wp_send_json_success([
                     'attachment_id' => $attachment_id,
                     'restored' => 0,
@@ -1251,9 +1244,9 @@ class Ajax {
                             $deleted_ok = @wp_delete_file($try_path);
                         }
 
-                        if (! $deleted_ok) {
-                            // Fallback to unlink if wp_delete_file didn't remove it
-                            $deleted_ok = @unlink($try_path);
+                        if (! $deleted_ok && $wp_filesystem) {
+                            // Fallback to WP_Filesystem delete
+                            $deleted_ok = $wp_filesystem->delete($try_path);
                         }
 
                         if ($deleted_ok) {
@@ -1369,8 +1362,11 @@ class Ajax {
      * @return void
      */
     public static function regenerateSingle() {
+        // Verify nonce before accessing POST data
+        check_ajax_referer('mmt_regenerate_nonce', 'nonce');
+        
         // Check nonce - use correct action name (same as regenerateAll)
-        mmt_check_ajax_permissions('mmt_regenerate_nonce', 'nonce', 'edit_posts');
+        modern_thumbnails_check_ajax_permissions('mmt_regenerate_nonce', 'nonce', 'edit_posts');
         
         $post_id = isset($_POST['post_id']) ? intval($_POST['post_id']) : 0;
         
@@ -1379,7 +1375,7 @@ class Ajax {
         }
         
         // Verify attachment exists and is valid image
-        if (!mmt_is_valid_image_attachment($post_id)) {
+        if (!modern_thumbnails_is_valid_image_attachment($post_id)) {
             wp_send_json_error('Invalid attachment');
         }
         
@@ -1389,10 +1385,9 @@ class Ajax {
             $regenerated = self::regenerateAttachmentSize($post_id, null);
             
             // Get the metadata that was already saved by regenerateAttachmentSize
-            $updated_metadata = mmt_get_metadata_safe($post_id);
+            $updated_metadata = modern_thumbnails_get_metadata_safe($post_id);
             
             if (!$updated_metadata) {
-                error_log('Modern Thumbnails: Failed to get metadata for post ' . $post_id);
                 wp_send_json_error('Failed to retrieve attachment metadata');
                 return;
             }
@@ -1534,7 +1529,7 @@ class Ajax {
         $width = intval($metadata['width'] ?? 0);
         $height = intval($metadata['height'] ?? 0);
         if ($width <= 1 || $height <= 1) {
-            $real_dims = mmt_get_image_dimensions($file, true);
+            $real_dims = modern_thumbnails_get_image_dimensions($file, true);
             if ($real_dims) {
                 $metadata['width'] = $real_dims['width'];
                 $metadata['height'] = $real_dims['height'];
@@ -1619,6 +1614,11 @@ class Ajax {
      * @return array|false
      */
     private static function generateMetadataWithEditor($attachment_id, $file) {
+        // Initialize WP_Filesystem for file operations
+        require_once( ABSPATH . 'wp-admin/includes/file.php' );
+        WP_Filesystem();
+        global $wp_filesystem;
+        
         $debug = ['sizes' => []];
         try {
             $editor_class = wp_get_image_editor($file);
@@ -1675,8 +1675,8 @@ class Ajax {
                 wp_mkdir_p(dirname($target));
 
                 // Ensure directory is writable before attempting save
-                if (is_dir($attachment_dir) && !is_writable($attachment_dir)) {
-                    @chmod($attachment_dir, 0755);
+                if (is_dir($attachment_dir) && $wp_filesystem && !$wp_filesystem->is_writable($attachment_dir)) {
+                    $wp_filesystem->chmod($attachment_dir, 0755);
                 }
 
                 $saved = $editor->save($target);
@@ -1688,7 +1688,7 @@ class Ajax {
                             'error' => 'save_failed_permission',
                             'message' => $error_msg,
                             'dir_exists' => is_dir($attachment_dir),
-                            'dir_writable' => is_writable($attachment_dir),
+                            'dir_writable' => $wp_filesystem ? $wp_filesystem->is_writable($attachment_dir) : false,
                             'dir_perms' => is_dir($attachment_dir) ? substr(sprintf('%o', @fileperms($attachment_dir)), -4) : null,
                         ];
                     } else {
@@ -1704,8 +1704,8 @@ class Ajax {
 
                 // Preserve source file permissions on generated thumbnail
                 $source_perms = @fileperms($file);
-                if ($source_perms !== false) {
-                    @chmod($saved['path'], $source_perms);
+                if ($source_perms !== false && $wp_filesystem) {
+                    $wp_filesystem->chmod($saved['path'], $source_perms);
                 }
 
                 $metadata['sizes'][$size_name] = [
@@ -1946,18 +1946,23 @@ class Ajax {
      * @return array Diagnostic information
      */
     public static function gatherPermissionsDiagnostics() {
+        // Initialize WP_Filesystem for file operations
+        require_once( ABSPATH . 'wp-admin/includes/file.php' );
+        WP_Filesystem();
+        global $wp_filesystem;
+        
         $upload_dir = wp_upload_dir();
         $uploads_base = $upload_dir['basedir'];
         $diagnostics = [
             'uploads_base'        => $uploads_base,
             'uploads_exists'      => is_dir($uploads_base),
-            'uploads_writable'    => is_writable($uploads_base),
+            'uploads_writable'    => $wp_filesystem ? $wp_filesystem->is_writable($uploads_base) : false,
             'uploads_perms'       => is_dir($uploads_base) ? substr(sprintf('%o', @fileperms($uploads_base)), -4) : null,
             'uploads_owner_uid'   => is_dir($uploads_base) ? @fileowner($uploads_base) : null,
             'php_user_uid'        => function_exists('posix_getuid') ? posix_getuid() : 'unknown',
             'php_user'            => function_exists('posix_getpwuid') ? posix_getpwuid(posix_getuid())['name'] : 'unknown',
             'temp_dir'            => sys_get_temp_dir(),
-            'temp_writable'       => is_writable(sys_get_temp_dir()),
+            'temp_writable'       => $wp_filesystem ? $wp_filesystem->is_writable(sys_get_temp_dir()) : false,
             'gd_available'        => extension_loaded('gd'),
             'imagick_available'   => extension_loaded('imagick'),
         ];
@@ -1992,6 +1997,11 @@ class Ajax {
      * @return array Directory info
      */
     public static function getAttachmentDirDiagnostics($attachment_id) {
+        // Initialize WP_Filesystem for file operations
+        require_once( ABSPATH . 'wp-admin/includes/file.php' );
+        WP_Filesystem();
+        global $wp_filesystem;
+        
         $file = get_attached_file($attachment_id);
         if (!$file) {
             return ['error' => 'no_attached_file'];
@@ -2000,7 +2010,7 @@ class Ajax {
         return [
             'dir'            => $attachment_dir,
             'exists'         => is_dir($attachment_dir),
-            'writable'       => is_writable($attachment_dir),
+            'writable'       => $wp_filesystem ? $wp_filesystem->is_writable($attachment_dir) : false,
             'perms'          => is_dir($attachment_dir) ? substr(sprintf('%o', @fileperms($attachment_dir)), -4) : null,
             'owner_uid'      => is_dir($attachment_dir) ? @fileowner($attachment_dir) : null,
         ];

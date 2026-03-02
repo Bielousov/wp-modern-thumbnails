@@ -290,7 +290,86 @@ assorti-band-test-960x640.jpg
 assorti-band-test-960x639.avif
 ```
 
-### 9. File Organization
+### 9. WordPress Coding Standards (PHPCS Compliance)
+
+#### File Operations - CRITICAL
+**NEVER use direct PHP filesystem functions. Always use WordPress alternatives:**
+
+| ❌ Direct PHP | ✅ WordPress Alternative | Notes |
+|---|---|---|
+| `chmod()` | `$wp_filesystem->chmod()` | Set file permissions |
+| `rename()` | `$wp_filesystem->move()` | Rename or move files |
+| `unlink()` | `wp_delete_file()` | Delete files |
+| `is_writable()` | `$wp_filesystem->is_writable()` | Check if writable |
+| `file_exists()` | `$wp_filesystem->exists()` | Check existence |
+
+**WP_Filesystem Usage Pattern:**
+```php
+// Initialize filesystem
+require_once( ABSPATH . 'wp-admin/includes/file.php' );
+WP_Filesystem();
+global $wp_filesystem;
+
+// Usage examples
+
+// Check file and write content
+if ( $wp_filesystem->exists( $file_path ) ) {
+    $wp_filesystem->put_contents( $file_path, $content );
+    $wp_filesystem->chmod( $file_path, 0644 );
+}
+
+// Check if directory is writable and move file
+if ( $wp_filesystem->is_writable( dirname( $old_path ) ) ) {
+    $wp_filesystem->move( $old_path, $new_path );
+}
+
+// Delete file
+$wp_filesystem->delete( $file_path );
+
+// Rename file (use move method)
+if ( file_exists( $file_path ) ) {
+    $new_path = dirname( $file_path ) . '/new-name.jpg';
+    $wp_filesystem->move( $file_path, $new_path );
+}
+```
+
+#### Debug Code - REMOVE FOR PRODUCTION
+**Never commit debug statements to production:**
+- ❌ `error_log()` — Removed before release
+- ❌ `var_dump()` — Removed before release
+- ❌ `var_export()` — Removed before release
+- ❌ `print_r()` — Removed before release
+
+If development logging needed, use conditional:
+```php
+if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+    error_log( 'Development message only' );
+}
+```
+
+#### Hidden Files - NEVER COMMIT
+**Files starting with `.` will fail plugin submission:**
+- ❌ `.copilot-instructions.md` — Use local symlink only
+- ❌ `.env` files — Never commit secrets
+- ✅ `.gitignore` — Standard exception, always include
+
+#### Nonce Verification
+**Add comment when nonce verified in helper/external function:**
+```php
+// Nonce verified in mmt_check_ajax_permissions()
+$post_id = isset( $_POST['post_id'] ) ? intval( $_POST['post_id'] ) : 0;
+```
+
+#### Global Helper Functions
+**All global functions must have phpcs exception comment:**
+```php
+// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound -- Function properly prefixed with mmt_
+function mmt_helper_function() {
+    // ...
+}
+```
+
+### 10. File Organization
 
 ```
 modern-thumbnails/
@@ -318,13 +397,13 @@ modern-thumbnails/
 └── assets/                            # Images and other assets
 ```
 
-### 10. Commits & Documentation
+### 11. Commits & Documentation
 - Write clear commit messages describing what changed
 - Update `README.md` changelog for each release
 - Keep `/doc/` folder for internal technical documentation
 - Document complex functions with detailed PHPDoc comments
 
-### 11. Testing & Validation
+### 12. Testing & Validation
 
 Before committing:
 - Run PHPCS: `phpcs --standard=WordPress` (strict compliance)
@@ -333,7 +412,7 @@ Before committing:
 - Check database query preparation
 - Validate all superglobal handling with `wp_unslash()` + sanitization
 
-### 12. Common Pitfalls (AVOID)
+### 13. Common Pitfalls (AVOID)
 
 ❌ **Don't do this:**
 ```php
@@ -395,7 +474,7 @@ use SomeClass;
 // Handle in JavaScript or via data attributes
 ```
 
-### 13. Plugin Metadata
+### 14. Plugin Metadata
 
 - **Plugin Name**: Modern Thumbnails
 - **License**: GPL v2 or later

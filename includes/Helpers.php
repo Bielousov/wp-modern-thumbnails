@@ -38,7 +38,8 @@ function mmt_get_version() {
  *
  * @return void Exits with error on failure, returns void on success
  */
-function mmt_check_ajax_permissions( $nonce_action, $nonce_param = '_wpnonce', $capability = 'manage_options' ) {
+// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound -- Function is properly prefixed
+function modern_thumbnails_check_ajax_permissions( $nonce_action, $nonce_param = '_wpnonce', $capability = 'manage_options' ) {
 	check_ajax_referer( $nonce_action, $nonce_param );
 	
 	if ( ! current_user_can( $capability ) ) {
@@ -54,7 +55,8 @@ function mmt_check_ajax_permissions( $nonce_action, $nonce_param = '_wpnonce', $
  *
  * @return WP_Post|null The attachment post object or null if invalid
  */
-function mmt_get_verified_attachment( $attachment_id, $capability = 'edit_posts' ) {
+// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound -- Function is properly prefixed
+function modern_thumbnails_get_verified_attachment( $attachment_id, $capability = 'edit_posts' ) {
 	$attachment = get_post( $attachment_id );
 	
 	if ( ! $attachment || 'attachment' !== $attachment->post_type ) {
@@ -76,7 +78,8 @@ function mmt_get_verified_attachment( $attachment_id, $capability = 'edit_posts'
  *
  * @return bool True if attachment is a valid image type
  */
-function mmt_is_valid_image_attachment( $attachment, $allowed_types = array() ) {
+// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound -- Function is properly prefixed
+function modern_thumbnails_is_valid_image_attachment( $attachment, $allowed_types = array() ) {
 	if ( is_numeric( $attachment ) ) {
 		$attachment = get_post( $attachment );
 	}
@@ -102,7 +105,8 @@ function mmt_is_valid_image_attachment( $attachment, $allowed_types = array() ) 
  *
  * @return string Format identifier (e.g., 'jpg', 'png', 'webp')
  */
-function mmt_get_format_from_mime( $mime_type, $default = 'jpg' ) {
+// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound -- Function is properly prefixed
+function modern_thumbnails_get_format_from_mime( $mime_type, $default = 'jpg' ) {
 	$mime_map = array(
 		'image/jpeg' => 'jpg',
 		'image/png'  => 'png',
@@ -125,7 +129,8 @@ function mmt_get_format_from_mime( $mime_type, $default = 'jpg' ) {
  *
  * @return array|false Array with 'width' and 'height' keys, or false on failure
  */
-function mmt_get_image_dimensions( $file_path, $use_imagick = true ) {
+// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound -- Function is properly prefixed
+function modern_thumbnails_get_image_dimensions( $file_path, $use_imagick = true ) {
 	if ( ! file_exists( $file_path ) ) {
 		return false;
 	}
@@ -169,7 +174,8 @@ function mmt_get_image_dimensions( $file_path, $use_imagick = true ) {
  *
  * @return bool True if dimensions are valid
  */
-function mmt_validate_dimensions( $width, $height, $min = 1 ) {
+// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound -- Function is properly prefixed
+function modern_thumbnails_validate_dimensions( $width, $height, $min = 1 ) {
 	$width  = intval( $width );
 	$height = intval( $height );
 	
@@ -185,7 +191,8 @@ function mmt_validate_dimensions( $width, $height, $min = 1 ) {
  *
  * @return array|false Array with 'width' and 'height', or false if pattern not found
  */
-function mmt_extract_dimensions_from_filename( $filename ) {
+// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound -- Function is properly prefixed
+function modern_thumbnails_extract_dimensions_from_filename( $filename ) {
 	if ( preg_match( '/-(\d+)x(\d+)\.[a-z]+$/i', $filename, $matches ) ) {
 		return array(
 			'width'  => intval( $matches[1] ),
@@ -206,7 +213,8 @@ function mmt_extract_dimensions_from_filename( $filename ) {
  *
  * @return int Number of files successfully deleted
  */
-function mmt_delete_image_variants( $base_path, $formats = array() ) {
+// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound -- Function is properly prefixed
+function modern_thumbnails_delete_image_variants( $base_path, $formats = array() ) {
 	if ( empty( $formats ) ) {
 		$formats = array( 'webp', 'avif', 'png', 'jpg', 'jpeg', 'gif' );
 	}
@@ -237,7 +245,8 @@ function mmt_delete_image_variants( $base_path, $formats = array() ) {
  *
  * @return array Array of found filenames
  */
-function mmt_scan_for_image_variants( $base_filename, $directory, $extensions = array() ) {
+// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound -- Function is properly prefixed
+function modern_thumbnails_scan_for_image_variants( $base_filename, $directory, $extensions = array() ) {
 	if ( ! is_dir( $directory ) ) {
 		return array();
 	}
@@ -278,7 +287,8 @@ function mmt_scan_for_image_variants( $base_filename, $directory, $extensions = 
  *
  * @return array|false Metadata array or false if not available
  */
-function mmt_get_metadata_safe( $attachment_id ) {
+// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound -- Function is properly prefixed
+function modern_thumbnails_get_metadata_safe( $attachment_id ) {
 	$metadata = wp_get_attachment_metadata( intval( $attachment_id ) );
 	
 	if ( false === $metadata || ! is_array( $metadata ) ) {
@@ -298,7 +308,8 @@ function mmt_get_metadata_safe( $attachment_id ) {
  *
  * @return bool|int Result from update_post_meta
  */
-function mmt_update_metadata_safe( $attachment_id, $metadata ) {
+// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound -- Function is properly prefixed
+function modern_thumbnails_update_metadata_safe( $attachment_id, $metadata ) {
 	if ( ! is_array( $metadata ) ) {
 		return false;
 	}
@@ -314,7 +325,8 @@ function mmt_update_metadata_safe( $attachment_id, $metadata ) {
  *
  * @return void Exits with JSON response
  */
-function mmt_send_ajax_success( $message, $data = array() ) {
+// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound -- Function is properly prefixed
+function modern_thumbnails_send_ajax_success( $message, $data = array() ) {
 	$response = array(
 		'message' => $message,
 	);
@@ -334,7 +346,8 @@ function mmt_send_ajax_success( $message, $data = array() ) {
  *
  * @return void Exits with JSON error response
  */
-function mmt_send_ajax_error( $message, $error_code = '' ) {
+// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound -- Function is properly prefixed
+function modern_thumbnails_send_ajax_error( $message, $error_code = '' ) {
 	$response = array(
 		'message' => $message,
 	);
